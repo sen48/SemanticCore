@@ -108,7 +108,3 @@ def build_data_structures(corpus, file=None):
         length = len(corpus[docid])
         dlt.add(docid, length)
     return idx, dlt
-
-if __name__ == '__main__':
-    indx = InvertedIndex('NKRL.csv')
-    print(indx.get_index_frequency('оффшор'))
