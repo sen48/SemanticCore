@@ -25,9 +25,6 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
                    "суть", "очень", "год", "который", 'usd'])
 
 
-
-
-
 def _get_attr(t, attribute):
     if not t:
         return []
@@ -423,6 +420,34 @@ class WebPage:
             if word not in text:
                 res.append(word)
         return res
+
+    def score(self, query, invdx):
+        k0 = 0.3
+        k1 = 0.1
+        k2 = 0.2
+        k3 = 0.02
+        tokens = nltk.word_tokenize(query)
+        terms = _get_terms_from_tokens(tokens)
+        idfs = {}
+        with sqlite3.connect(os.path.join(DB_PATH, DB_FILE)) as con:
+            cur = con.cursor()
+            for term in terms:
+                fs = cur.execute('''SELECT Doc FROM freq WHERE Lemma = :term''', {'term': term}).fetchall()
+                if len(fs) == 0:
+                    idfs[term] = NUM_DOCS / MIN_DF
+                else:
+                    idfs[term] = NUM_DOCS / fs[0][0]
+        if len(terms) == 1:
+            return w_single(document, zone, terms, p_type)
+        w_s = w_single(document, zone, terms, p_type)
+        w_p = w_pair(document, zone, terms, p_type)
+        w_a = w_all_words(document, zone, terms, p_type)
+        w_ph = w_phrase(document, zone, query, p_type)
+        w_h = w_half_phrase(document, zone, terms, idfs, p_type)
+        res = w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
+        print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
+              ' + k3 * {6: 3.2f}'.format(document.id, res, w_s, w_p, w_a, w_ph, w_h, zone))
+        return w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
 
     def gz_rate(self):
         """
