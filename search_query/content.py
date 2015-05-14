@@ -425,6 +425,11 @@ class WebPage:
         return res
 
     def gz_rate(self):
+        """
+        Расчитывает степень сжимаемости текста
+
+        :return:
+        """
         t = self.text()
         text_compressed = compress(bytes(t, 'UTF-8'))
         n = getsizeof(t)
