@@ -10,19 +10,6 @@ import bs4.element
 import nltk
 import readability
 import bm_25.invdx as bm
-import pymorphy2
-from string import punctuation
-from nltk.corpus import stopwords
-punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
-stop_words = stopwords.words('russian')
-stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нужный',
-                   'перед', 'весь', 'хотеть', 'цель', 'сказать', 'ради', 'самый', 'согласно',
-                   'около', 'быстрый', 'накануне', 'неужели', 'понимать', 'ввиду', 'против',
-                   'близ', 'поперёк', 'никто', 'понять', 'вопреки', 'твой', 'объектный',
-                   'вместо', 'идеальный', 'целевой', 'сила', 'благодаря', 'знаешь',
-                   'вследствие', 'знать', 'прийти', 'вдоль', 'вокруг', 'мочь', 'предлагать',
-                   'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
-                   "суть", "очень", "год", "который", 'usd'])
 
 
 def _get_attr(t, attribute):
@@ -426,19 +413,8 @@ class WebPage:
         k1 = 0.1
         k2 = 0.2
         k3 = 0.02
-        tokens = nltk.word_tokenize(query)
-        terms = _get_terms_from_tokens(tokens)
-        idfs = {}
-        with sqlite3.connect(os.path.join(DB_PATH, DB_FILE)) as con:
-            cur = con.cursor()
-            for term in terms:
-                fs = cur.execute('''SELECT Doc FROM freq WHERE Lemma = :term''', {'term': term}).fetchall()
-                if len(fs) == 0:
-                    idfs[term] = NUM_DOCS / MIN_DF
-                else:
-                    idfs[term] = NUM_DOCS / fs[0][0]
-        if len(terms) == 1:
-            return w_single(document, zone, terms, p_type)
+
+
         w_s = w_single(document, zone, terms, p_type)
         w_p = w_pair(document, zone, terms, p_type)
         w_a = w_all_words(document, zone, terms, p_type)
@@ -462,7 +438,7 @@ class WebPage:
         return float(n) / n_compressed
 
 
-def _text_to_list(text):
+'''def _text_to_list(text):
     morth = pymorphy2.MorphAnalyzer()
     res = list()
     for word in nltk.word_tokenize(text):
@@ -470,7 +446,7 @@ def _text_to_list(text):
         if word in punctuation or word in stop_words:
             continue
         res.append(word)
-    return res
+    return res'''
 
 
 def _common_words(texts):
