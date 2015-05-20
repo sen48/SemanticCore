@@ -23,8 +23,38 @@ def _read_idfs(file):
     return idf
 
 
-class InvertedIndex:
+class Entry:
 
+    def __init__(self, position, zone, props=None):
+        self.position = position
+        self.zone = zone
+        if props:
+            self.props = props
+
+
+class PostingList:
+    def __init__(self):
+        self.posting_list = dict()
+
+    def add(self, doc_id, entry):
+        if doc_id not in self.posting_list:
+            self.posting_list[doc_id] = list()
+        self.posting_list[doc_id].append(entry)
+
+    def tf(self, doc_id, zone=None):
+        if doc_id not in self.posting_list:
+            return 0
+        if zone:
+            tf = 0
+            for e in self.posting_list[doc_id]:
+                if e.zone == zone:
+                    tf += 1
+            return tf
+        else:
+            return len(self.posting_list[doc_id])
+
+
+class InvertedIndex:
     def __init__(self, idfs=None):
         self.glob_idfs = False
         if idfs:
@@ -38,25 +68,14 @@ class InvertedIndex:
     def __getitem__(self, item):
         return self.index[item]
 
-    def add(self, word, docid):
-        if word in self.index:
-            if docid in self.index[word]:
-                self.index[word][docid] += 1
-            else:
-                self.index[word][docid] = 1
-        else:
-            d = dict()
-            d[docid] = 1
-            self.index[word] = d
-
-    #frequency of word in document
+    def add(self, term, docid, e):
+        if term not in self.index:
+            self.index[term] = PostingList()
+        self.index[term].add(docid, e)
+    # frequency of word in document
     def get_document_frequency(self, word, docid):
         if word in self.index:
-            if docid in self.index[word]:
-                return self.index[word][docid]
-            else:
-                return 0
-                #raise LookupError('%s not in document %s' % (str(word), str(docid)))
+            return self.index[word].tf(docid)
         else:
             return 0
             #raise LookupError('%s not in index' % str(word))
@@ -72,35 +91,6 @@ class InvertedIndex:
             return len(self.index[word])
         else:
             raise LookupError('%s not in index' % word)
-
-
-    def score(self, doc_id, query):
-        k0 = 0.3
-        k1 = 0.1
-        k2 = 0.2
-        k3 = 0.02
-        tokens = nltk.word_tokenize(query)
-        terms = _get_terms_from_tokens(tokens)
-        idfs = {}
-        with sqlite3.connect(os.path.join(DB_PATH, DB_FILE)) as con:
-            cur = con.cursor()
-            for term in terms:
-                fs = cur.execute('''SELECT Doc FROM freq WHERE Lemma = :term''', {'term': term}).fetchall()
-                if len(fs) == 0:
-                    idfs[term] = NUM_DOCS / MIN_DF
-                else:
-                    idfs[term] = NUM_DOCS / fs[0][0]
-        if len(terms) == 1:
-            return w_single(document, zone, terms, p_type)
-        w_s = w_single(document, zone, terms, p_type)
-        w_p = w_pair(document, zone, terms, p_type)
-        w_a = w_all_words(document, zone, terms, p_type)
-        w_ph = w_phrase(document, zone, query, p_type)
-        w_h = w_half_phrase(document, zone, terms, idfs, p_type)
-        res = w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
-        print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
-              ' + k3 * {6: 3.2f}'.format(document.id, res, w_s, w_p, w_a, w_ph, w_h, zone))
-        return w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
 
 
 class DocumentLengthTable:
@@ -126,14 +116,3 @@ class DocumentLengthTable:
         return float(sum) / float(len(self.table))
 
 
-def build_data_structures(corpus, file=None):
-    idx = InvertedIndex(file)
-    dlt = DocumentLengthTable()
-    for docid, c in enumerate(corpus):
-        # build inverted index
-        for word in c:
-            idx.add(str(word), docid)
-        # build document length table
-        length = len(corpus[docid])
-        dlt.add(docid, length)
-    return idx, dlt

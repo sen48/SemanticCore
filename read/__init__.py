@@ -1,20 +1,20 @@
-
+#!/usr/bin/env python
 import logging
 import re
 import sys
 
-#from collections import defaultdict
+from collections import defaultdict
 from lxml.etree import tostring
 from lxml.etree import tounicode
 from lxml.html import document_fromstring
 from lxml.html import fragment_fromstring
 
-from readability.cleaners import clean_attributes
-from readability.cleaners import html_cleaner
-from readability.htmls import build_doc
-from readability.htmls import get_body
-from readability.htmls import get_title
-from readability.htmls import shorten_title
+from read.cleaners import clean_attributes
+from read.cleaners import html_cleaner
+from read.htmls import build_doc
+from read.htmls import get_body
+from read.htmls import get_title
+from read.htmls import shorten_title
 
 
 logging.basicConfig(level=logging.INFO)
@@ -32,12 +32,12 @@ REGEXES = {
     #'trimRe': re.compile('^\s+|\s+$/'),
     #'normalizeRe': re.compile('\s{2,}/'),
     #'killBreaksRe': re.compile('(<br\s*\/?>(\s|&nbsp;?)*){1,}/'),
-    #'videoRe': re.compile('http:\/\/(www\.)?(youtube|vimeo)\.com', re.I),
+    'videoRe': re.compile('http:\/\/(www\.)?(youtube|vimeo)\.com', re.I),
     #skipFootnoteLink:      /^\s*(\[?[a-z0-9]{1,2}\]?|^|edit|citation needed)\s*$/i,
 }
 
 
-class Unparseable(ValueError):
+class Unparseable(Exception):
     pass
 
 
@@ -183,6 +183,7 @@ class Document:
                         if article is None:
                             article = self.html
                 cleaned_article = self.sanitize(article, candidates)
+
                 article_length = len(cleaned_article or '')
                 retry_length = self.options.get(
                     'retry_length',
@@ -194,9 +195,9 @@ class Document:
                     continue
                 else:
                     return cleaned_article
-        except BaseException as e:
+        except Exception as e:
             log.exception('error getting summary: ')
-            raise Unparseable(str(e))
+            raise Unparseable()
 
     def get_article(self, candidates, best_candidate, html_partial=False):
         # Now that we have the top candidate, look through its siblings for
@@ -211,7 +212,9 @@ class Document:
         else:
             output = document_fromstring('<div/>')
         best_elem = best_candidate['elem']
-        for sibling in best_elem.getparent().getchildren():
+        parent = best_elem.getparent()
+        siblings = parent.getchildren() if parent is not None else [best_elem]
+        for sibling in siblings:
             # in lxml there no concept of simple text
             # if isinstance(sibling, NavigableString): continue
             append = False
@@ -380,18 +383,16 @@ class Document:
 
     def transform_misused_divs_into_paragraphs(self):
         for elem in self.tags(self.html, 'div'):
-            s = tostring(elem, encoding='unicode')
-
             # transform <div>s that do not contain other block elements into
             # <p>s
             #FIXME: The current implementation ignores all descendants that
             # are not direct children of elem
             # This results in incorrect results in case there is an <img>
             # buried within an <a> for example
-            if not REGEXES['divToPElementsRe'].search(s): #unicode (''.join(map(tostring, list(elem))))
-                # self.debug("Altering %s to p" % (describe(elem)))
+            if not REGEXES['divToPElementsRe'].search(''.join(list(map(str, list(elem))))):
+                #self.debug("Altering %s to p" % (describe(elem)))
                 elem.tag = "p"
-                # print( "Fixed element "+describe(elem))
+                #print "Fixed element "+describe(elem)
 
         for elem in self.tags(self.html, 'div'):
             if elem.text and elem.text.strip():
@@ -429,8 +430,15 @@ class Document:
             if self.class_weight(header) < 0 or self.get_link_density(header) > 0.33:
                 header.drop_tree()
 
-        for elem in self.tags(node, "form", "iframe", "textarea"):
+        for elem in self.tags(node, "form", "textarea"):
             elem.drop_tree()
+
+        for elem in self.tags(node, "iframe"):
+            if "src" in elem.attrib and REGEXES["videoRe"].search(elem.attrib["src"]):
+                elem.text = "VIDEO" # ADD content to iframe text node to force <iframe></iframe> proper output
+            else:
+                elem.drop_tree()
+
         allowed = {}
         # Conditionally clean <table>s, <ul>s, and <div>s
         for el in self.reverse_tags(node, "table", "ul", "div"):
@@ -475,7 +483,7 @@ class Document:
 
                 #if el.tag == 'div' and counts["img"] >= 1:
                 #    continue
-                if counts["p"] and counts["img"] > counts["p"]:
+                if counts["p"] and counts["img"] > 1+counts["p"]*1.3:
                     reason = "too many images (%s)" % counts["img"]
                     to_remove = True
                 elif counts["li"] > counts["p"] and tag != "ul" and tag != "ol":
@@ -608,7 +616,7 @@ def main():
         file = open(args[0], 'rt')
     enc = sys.__stdout__.encoding or 'utf-8' # XXX: this hack could not always work, better to set PYTHONIOENCODING
     try:
-        print( Document(file.read(),
+        print(Document(file.read(),
             debug=options.verbose,
             url=options.url,
             positive_keywords = options.positive_keywords,

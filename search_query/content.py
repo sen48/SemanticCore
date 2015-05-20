@@ -8,7 +8,7 @@ import urllib
 import bs4
 import bs4.element
 import nltk
-import readability
+import read
 import bm_25.invdx as bm
 
 
@@ -41,6 +41,7 @@ def _clear_phone(tel):
     if len(tel) == 12 and tel.startswith('44'):
         tel = tel[2:]
     return tel
+
 
 
 class WebPage:
@@ -116,10 +117,10 @@ class WebPage:
         return self.doc.select('//title')[0]
 
     def readable(self):
-        return readability.Document(self.html()).summary()
+        return read.Document(self.html()).summary()
 
     def text(self):
-        html_doc = readability.Document(self.html()).summary()
+        html_doc = read.Document(self.html()).summary()
         soup = bs4.BeautifulSoup(html_doc)
         text = soup.get_text()
         text = text.replace('#', '').replace('↵', '').replace('↑', '').replace('°', '').replace('©', '').replace('«',

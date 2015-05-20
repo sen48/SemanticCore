@@ -3,8 +3,8 @@ import re
 from lxml.html import tostring
 import lxml.html
 
-from readability.cleaners import normalize_spaces, clean_attributes
-from readability.encoding import get_encoding
+from read.cleaners import normalize_spaces, clean_attributes
+from read.encoding import get_encoding
 
 
 utf8_parser = lxml.html.HTMLParser(encoding='utf-8')
