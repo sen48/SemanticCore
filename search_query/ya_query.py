@@ -81,6 +81,23 @@ class YaQuery:
         print(self.query)
         return [item.url_id for item in self.get_serp(top)]
 
+    def get_urls(self, top):
+        """
+        Возвращает urls поисковой выдачи.
+        Parameters
+        ----------
+        top: int
+            глубина ТОПа
+        Returns
+        -------
+                generator
+                упорядоченный по позиции в выдаче список urlов в БД длиной top,
+                соответствующий ТОП{top} поисковой выдачи
+        """
+        for item in self.get_serp(top):
+            yield item.url
+
+
     def count_commercial(self, top):
         """
         Мера коммерческости запроса, чем больше значение, тем более коммерческий запрос. Не нормированна.

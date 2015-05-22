@@ -2,35 +2,17 @@ import math
 import os
 import sqlite3
 import re
-
 import nltk
-import pandas
+import nltk.text
 import pymorphy2
-
-#from readability.readability import Document
 from bm_25.invdx import Entry, InvertedIndex, DocumentLengthTable
 from read.htmls import norm_title
 import read
-from grab import Grab, GrabError
 from nltk.util import bigrams, ngrams
 from string import punctuation
 from nltk.corpus import stopwords
-# from serp_yaxml import site_pos_url
-# import write_read_serp
-# import random
-import readability
 import bs4
 
-punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
-stop_words = stopwords.words('russian')
-stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нужный',
-                   'перед', 'весь', 'хотеть', 'цель', 'сказать', 'ради', 'самый', 'согласно',
-                   'около', 'быстрый', 'накануне', 'неужели', 'понимать', 'ввиду', 'против',
-                   'близ', 'поперёк', 'никто', 'понять', 'вопреки', 'твой', 'объектный',
-                   'вместо', 'идеальный', 'целевой', 'сила', 'благодаря', 'знаешь',
-                   'вследствие', 'знать', 'прийти', 'вдоль', 'вокруг', 'мочь', 'предлагать',
-                   'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
-                   'суть', 'очень', 'год', 'который', 'usd'])
 
 ZONES = {'body': 1, 'title': 2, 'h1': 3, 'h2': 4, 'h3': 5, 'alt': 6}
 ZONE_COEFFICIENT = {'body': 1.0, 'title': 2, 'h1': 1.5, 'h2': 1.25, 'h3': 1.125, 'alt': 1.0}
@@ -47,7 +29,7 @@ MIN_CF = 0.3
 class Readable(read.Document):
 
     def __str__(self):
-        return ''
+        return '<Readable object>'
 
     def text(self):
         soup = bs4.BeautifulSoup(self.summary())
@@ -59,6 +41,7 @@ class Readable(read.Document):
         p = re.compile(r'[\n\r][\n\r \t\a]+')
         text = p.sub('\n', text)
         return text
+
 
     def get(self, tag):
         doc = self._html(True)
@@ -92,23 +75,6 @@ class Readable(read.Document):
         else:
             return self.get(zone)[0]
 
-    def all_entries(self):
-        entries = dict()
-        morph = pymorphy2.MorphAnalyzer()
-        for zone in ['boby', 'title', 'h1']:
-            text = self.get_zone(zone)
-            pos = 0
-            for tok in nltk.word_tokenize(text):
-                pos += 1
-                term = morph.parse(tok)
-                term_nf = term[0].normal_form
-                if term_nf in stop_words or term_nf in punctuation:
-                    continue
-                if term_nf not in entries:
-                        entries[term_nf] = list()
-                entries[term_nf].append(Entry(pos, zone, term[0].tag))
-        return entries
-
 
 class HttpCodeException(Exception):
     pass
@@ -124,91 +90,7 @@ def _text_sub(html_doc, rex):
     return p.sub(' ', html_doc)
 
 
-def _clear_term(term):
-    s = term[-1]
-    while not s.isalpha():
-        term = term[:-1]
-        if len(term) > 0:
-            s = term[-1]
-        else:
-            s = 'a'
-    if len(term) < 2:
-        return term
-    s = term[0]
-    while not s.isalpha():
-        term = term[1:]
-        if len(term) > 0:
-            s = term[0]
-        else:
-            s = 'a'
-    return term
 
-
-def _get_terms_from_tokens(tokens):
-    morph = pymorphy2.MorphAnalyzer()
-    pre_terms = [morph.parse(tok)[0].normal_form for tok in tokens]
-    terms = []
-    for term in pre_terms:
-        if term in punctuation or term.isnumeric() or len(term) <= 1:
-            continue
-        term = _clear_term(term)
-        if term not in stop_words and len(term) > 1:
-            terms.append(term)
-    return terms
-
-
-def _get_term_list(text):
-    if isinstance(text, list):
-        text = ' '.join(text)
-    return _get_terms_from_tokens(nltk.word_tokenize(text))
-
-def log_p(term, p_type):
-    if p_type == 'p_on_topic':
-        field = 'Freq'
-        total = NUM_DOCS
-        min_val = MIN_CF
-        func = lambda cf, d: 1 - math.exp(-1.5 * cf / d)
-    elif p_type == 'IDF':
-        field = 'Doc'
-        total = NUM_DOCS
-        min_val = MIN_DF
-        func = lambda df, d: d / df
-    elif p_type == 'ICF':
-        field = 'Freq'
-        total = TOTAL_LEMMS
-        min_val = MIN_CF
-        func = lambda cf, total_lemms: total_lemms / cf
-    else:
-        raise Exception('Wrong p_type')
-
-    with sqlite3.connect(os.path.join(DB_PATH, DB_FILE)) as con:
-        cur = con.cursor()
-        fs = cur.execute('''SELECT ''' + field + ''' FROM freq WHERE Lemma = :term''', {'term': term}).fetchall()
-    if len(fs) == 0:
-        f = round(min_val * 10 ** 6 / NUM_DOCS)
-    else:
-        f = round(fs[0][0] * 10 ** 6 / NUM_DOCS)
-    p = func(float(f), total)
-
-    return abs(math.log(p))
-
-
-def term_freq(document, zone, term):
-    if term not in document.tfs:
-        return 0
-    return document.tfs[term][zone]
-
-
-def w_single(document, zone, terms, p_type):
-    assert isinstance(document, Readable)
-    res = 0
-    k1 = 1
-    k2 = 1 / 350
-    for term in terms:
-        tf = term_freq(document, zone, term)
-        l_p = log_p(term, p_type)
-        res += l_p * tf / (tf + k1 + k2 * document.length[zone])
-    return res
 
 
 def _sum_p_tf(terms, tf, p_type):
@@ -250,17 +132,7 @@ def triple_weight(document, zone, triple, p_type):
     return s * tf / (1 + tf)
 
 
-def w_pair(document, zone, terms, p_type):
-    if len(terms) < 2:
-        return 0
-    pairs = bigrams(terms)
-    triples = ngrams(terms, 3)
-    w_p = 0
-    for pair in pairs:
-        w_p += pair_weight(document, zone, pair, p_type)
-    for triple in triples:
-        w_p += triple_weight(document, zone, triple, p_type)
-    return w_p
+
 
 
 def w_all_words(document, zone, terms, p_type):
@@ -343,31 +215,50 @@ def _find_common_terms(documents):
     return [term for term in documents[0].tfs if sum(int(term in doc.tfs) for doc in documents) >= 0.8 * len(documents)]
 
 
-def build_data_structures(corpus_of_readable, file=None):
-    idx = InvertedIndex(file)
-    dlt = DocumentLengthTable()
-    for docid, c in enumerate(corpus_of_readable):
-        # build inverted index
-        for e in c:
-            entries = c.all_entries()
-            for term, entry in entries:
-                idx.add(term, docid, entry)
-        # build document length table
-        length = len(corpus_of_readable[docid]) #FIX:
-        dlt.add(docid, length)
-    return idx, dlt
+
+def make_corp(readables, path):
+    for i, r in enumerate(readables):
+        with open(os.path.join(path, str(i+10) + '.txt'), mode='w', encoding='utf8') as fout:
+            fout.write(r.title() + '/n' + r.text())
 
 
+def make_corp_file():
+    import search_query.ya_query as sps
+    from search_query.content import WebPage
+    readables = []
+    for q in sps.queries_from_file('C:\\_Work\\vostok\\000.txt', 213)[1:]:
+        print(q.query)
+        for u in q.get_urls(10):
+            try:
+                readables.append(Readable(WebPage(u).html()))
+            except:
+                print(u)
+    make_corp(readables, 'C:\\_Work\\vostok\\corp')
 
 
 if __name__ == '__main__':
-    url = 'http://wiki.python.su/%D0%94%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D0%B0%D1%86%D0%B8%D0%B8/BeautifulSoup'
-    url = 'http://dvhb.ru/#'
-    g = Grab()
-    g.setup()
-    g.go(url)
-    doc = Readable(g.doc.unicode_body())
-    print(doc.title())
-    print(doc.h1())
-    print([e for e in doc.all_entries()])
-    print(doc.text())
+    from nltk.corpus import PlaintextCorpusReader
+    corpus_root = 'C:\\_Work\\vostok\\corp'
+    wordlists = PlaintextCorpusReader(corpus_root, fileids='.+[.]txt')
+    print(len(wordlists.raw()))
+
+    print(wordlists.words('145.txt'))
+    wl = []
+    for fid in wordlists.fileids():
+        for w in list(wordlists.words(fid)):
+            if not (w in punctuation or w in stop_words):
+                wl.append(w)
+
+    text1 = nltk.text.Text(wl)
+    # print(text1.similar("респираторы"))
+    # print(text1.common_contexts(["Респиратор", "полумаска"]))
+    fdist1 = nltk.FreqDist(text1)
+    lapprob = nltk.LaplaceProbDist(fdist1)
+    print(lapprob.prob('Полная'))
+    print(lapprob.prob('оффшор'))
+    # print(fdist1.most_common())
+    # print(text1.collocations())
+    #fdist1.plot(500, cumulative=False)
+    print(nltk.pos_tag(text1))
+
+
