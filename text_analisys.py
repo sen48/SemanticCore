@@ -102,35 +102,6 @@ def _sum_p_tf(terms, tf, p_type):
     return s * tf / (1 + tf)
 
 
-def pair_weight(document, zone, pair, p_type):
-    if pair[0] not in document.tfs or pair[1] not in document.tfs:
-        return 0
-    tf = 0
-    positions1 = document.index[pair[0]][zone]
-    positions2 = document.index[pair[1]][zone]
-    for p1 in positions1:
-        if p1 + 1 in positions2:
-            tf += 1
-        if p1 - 1 in positions2:
-            tf += 0.5
-        if p1 + 2 in positions2:
-            tf += 0.5
-    s = log_p(pair[0], p_type) + log_p(pair[1], p_type)
-    return s * tf / (1 + tf)
-
-
-def triple_weight(document, zone, triple, p_type):
-    if triple[0] not in document.tfs or triple[2] not in document.tfs:
-        return 0
-    tf = 0
-    positions1 = document.index[triple[0]][zone]
-    positions2 = document.index[triple[2]][zone]
-    for p1 in positions1:
-        if p1 + 1 in positions2:
-            tf += 0.1
-    s = log_p(triple[0], p_type) + log_p(triple[1], p_type)
-    return s * tf / (1 + tf)
-
 
 
 

@@ -80,11 +80,10 @@ class Entry:
 
     def __init__(self, position, zone, props=None):
         self.position = position
-        self.zone = zone
         self.props = props
 
     def __str__(self):
-        return '<Entry> (position = {}, zone = {}, properties = {})'.format(self.position, self.zone, self.props)
+        return '<Entry> (position = {}, properties = {})'.format(self.position, self.props)
 
 
 class PostingList:
@@ -94,22 +93,27 @@ class PostingList:
     def __getitem__(self, doc_id):
         return self.posting_list[doc_id]
 
-    def add(self, doc_id, entry):
+    def add(self, doc_id, zone, entry):
         if doc_id not in self.posting_list:
-            self.posting_list[doc_id] = list()
-        self.posting_list[doc_id].append(entry)
+            self.posting_list[doc_id] = dict()
+        if zone not in self.posting_list[doc_id]:
+            self.posting_list[doc_id][zone] = list()
+        self.posting_list[doc_id][zone].append(entry)
 
-    def tf(self, doc_id, zone=None):
+    def tf(self, doc_id, zone):
         if doc_id not in self.posting_list:
             return 0
-        if zone:
-            tf = 0
-            for e in self.posting_list[doc_id]:
-                if e.zone == zone:
-                    tf += 1
-            return tf
-        else:
-            return len(self.posting_list[doc_id])
+        if zone not in self.posting_list[doc_id]:
+            return 0
+        return len(self.posting_list[doc_id][zone])
+
+    def entries(self, doc_id, zone):
+        if doc_id not in self.posting_list:
+            return []
+        if zone not in self.posting_list[doc_id]:
+            return []
+        return self.posting_list[doc_id][zone]
+
 
 
 class InvertedIndex:
@@ -132,12 +136,12 @@ class InvertedIndex:
     def doc_length(self, docid, zone):
         return self.doc_lens.get_length(docid, zone)
 
-    def add(self, term, docid, e):
+    def add(self, term, docid, zone, e):
         if term not in self.index:
             self.index[term] = PostingList()
-        self.index[term].add(docid, e)
+        self.index[term].add(docid, zone, e)
         print(e)
-        self.doc_lens.update(docid, e.zone)
+        self.doc_lens.update(docid, zone)
 
     def save(self, name):
         with open('{}.pickle'.format(name), 'wb') as f:
@@ -163,7 +167,7 @@ class InvertedIndex:
 
     def score(self, doc_id, query):
 
-        return sum([self.w_single(doc_id, zone, _get_term_list(query)) for zone in ['body', 'title', 'h1']])
+        return sum([self.w_pair(doc_id, zone, _get_term_list(query)) for zone in ['body', 'title', 'h1']])
 
     def w_single(self, doc_id, zone, terms):
         res = 0
@@ -175,45 +179,37 @@ class InvertedIndex:
             res += l_p * tf / (tf + k1 + k2 * self.doc_length(doc_id, zone))
         return res
 
-    def w_pair(document, zone, terms, p_type):
+    def w_pair(self, doc_id, zone, terms):
+
         if len(terms) < 2:
             return 0
-        pairs = bigrams(terms)
-        triples = ngrams(terms, 3)
-        w_p = 0
-        for pair in pairs:
-            w_p += pair_weight(document, zone, pair, p_type)
-        for triple in triples:
-            w_p += triple_weight(document, zone, triple, p_type)
-        return w_p
+        i = 0
+        sum = 0
+        positions0 = [e.position for e in self.index[terms[0]].entries(doc_id, zone)]
+        positions1 = [e.position for e in self.index[terms[1]].entries(doc_id, zone)]
+        s0 = self.log_p(terms[0])
+        s1 = self.log_p(terms[1])
+        while i+2 < len(terms):
+            s2 = self.log_p(terms[2])
+            positions2 = [e.position for e in self.index[terms[i+2]].entries(doc_id, zone)]
+            tf = double_tf(positions0, positions1)
+            tf_spec = double_spec_tf(positions0, positions2)
+            sum += (s0 + s1) * tf / (1 + tf)
+            sum += (s0 + s2) * tf_spec / (1 + tf_spec)
+            i += 1
+            positions0 = positions1
+            positions1 = positions2
+            s0 = s1
+            s1 = s2
 
-    def pair_weight(document, zone, pair, p_type):
-        if pair[0] not in document.tfs or pair[1] not in document.tfs:
-            return 0
-        tf = 0
-        positions1 = document.index[pair[0]][zone]
-        positions2 = document.index[pair[1]][zone]
-        for p1 in positions1:
-            if p1 + 1 in positions2:
-                tf += 1
-            if p1 - 1 in positions2:
-                tf += 0.5
-            if p1 + 2 in positions2:
-                tf += 0.5
-        s = log_p(pair[0], p_type) + log_p(pair[1], p_type)
-        return s * tf / (1 + tf)
+        tf = double_tf(positions0, positions1)
+        sum += (s0 + s1) * tf / (1 + tf)
+        return sum
 
 
-    def triple_weight(self, doc_id, zone, triple, p_type):
-        for term in [triple[0], triple[2]]:
-            if
-        positions1 = self.d.index[triple[0]][doc_id]
-        positions2 = self.index[triple[2]][zone]
-        for p1 in positions1:
-            if p1 + 1 in positions2:
-                tf += 0.1
-        s = log_p(triple[0], p_type) + log_p(triple[1], p_type)
-        return s * tf / (1 + tf)
+
+
+
 
     def log_p(self, term, p_type='p_on_topic'):
         if p_type == 'p_on_topic':
@@ -223,6 +219,24 @@ class InvertedIndex:
         else:
             raise Exception('Wrong p_type')
         return abs(math.log(p))
+
+def double_tf(positions0, positions1):
+    tf = 0
+    for p1 in positions0:
+        if p1 + 1 in positions1:
+            tf += 1
+        if p1 - 1 in positions1:
+            tf += 0.5
+        if p1 + 2 in positions1:
+            tf += 0.5
+    return tf
+
+def double_spec_tf(positions0, positions2):
+    tf = 0
+    for p1 in positions0:
+        if p1 + 1 in positions2:
+            tf += 0.1
+    return tf
 
 class DocumentLengthTable:
     def __init__(self):
@@ -286,7 +300,7 @@ def build_idx(corpus_of_readable):
             entries = all_entries(c.get_zone(zone), zone)
             for term in entries:
                 for e in entries[term]:
-                    idx.add(term, docid, e)
+                    idx.add(term, docid, zone, e)
     return idx
 
 
@@ -336,14 +350,12 @@ if __name__ == '__main__':
     import pickle
     #try:
     with open('data.pickle', 'rb') as f:
-            indx = InvertedIndex()
             indx = pickle.load(f)
     """except Exception as e:
-        print(e)
-        indx = build_idx(make_corp_file())
-        data = indx
-        with open('data.pickle', 'wb') as f:
-            pickle.dump(data, f)"""
+
+    indx = build_idx(make_corp_file())
+    with open('data.pickle', 'wb') as f:
+            pickle.dump(indx, f)"""
 
     for i in indx.doc_ids():
 
