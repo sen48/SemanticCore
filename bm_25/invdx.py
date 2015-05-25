@@ -37,6 +37,7 @@ def _clear_term(term):
     return term
 
 
+
 def _get_terms_from_tokens(tokens):
     morph = pymorphy2.MorphAnalyzer()
     pre_terms = [morph.parse(tok)[0].normal_form for tok in tokens]
@@ -54,6 +55,28 @@ def _get_term_list(text):
     if isinstance(text, list):
         text = ' '.join(text)
     return _get_terms_from_tokens(nltk.word_tokenize(text))
+
+
+def _get_par_from_tokens(tokens):
+    '''Analyze tokens and return a list of :class:``'''
+    morph = pymorphy2.MorphAnalyzer()
+    terms = []
+    for tok in tokens:
+        tok = _clear_term(tok)
+        pr = morph.parse(tok)[0]
+        term = pr.normal_form
+        if term in punctuation or term.isnumeric() or len(term) <= 1 or  term in stop_words:
+            continue
+
+        terms.append(pr)
+    return terms
+
+
+
+def _get_par_list(text):
+    if isinstance(text, list):
+        text = ' '.join(text)
+    return _get_par_from_tokens(nltk.word_tokenize(text))
 
 
 def _read_idfs(file):
@@ -89,6 +112,9 @@ class Entry:
 class PostingList:
     def __init__(self):
         self.posting_list = dict()
+
+    def __contains__(self, item):
+        return item in self.posting_list
 
     def __getitem__(self, doc_id):
         return self.posting_list[doc_id]
@@ -165,33 +191,121 @@ class InvertedIndex:
     def get_index_frequency(self, word):
         return self.IDF.freq(word)
 
-    def score(self, doc_id, query):
+    def score(self, doc_id, zone, query):
+        k0 = 0.3
+        k1 = 0.1
+        k2 = 0.2
+        k3 = 0.02
+        terms = _get_par_list(query)
 
-        return sum([self.w_pair(doc_id, zone, _get_term_list(query)) for zone in ['body', 'title', 'h1']])
+        if len(terms) == 1:
+            return self.w_single(doc_id, zone, terms)
+        w_s = self.w_single(doc_id, zone, terms)
+        w_p = self.w_pair(doc_id, zone, terms)
+        w_a = self.w_all_words(doc_id, zone, terms)
+        w_ph = self.w_phrase(doc_id, zone, terms)
+        w_h = self.w_half_phrase(doc_id, zone, terms)
+        res = w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
+        print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
+              ' + k3 * {6: 3.2f}'.format(doc_id, res, w_s, w_p, w_a, w_ph, w_h, zone))
+        return res
+
+
+
+
+    def w_all_words(self, doc_id, zone, terms):
+        n_miss = 0
+        idfs = 0
+        for term in terms:
+            if term.normal_form not in self \
+                    or doc_id not in self[term.normal_form] \
+                    or zone not in self[term.normal_form][doc_id]:
+                n_miss += 1
+            else:
+                for e in self[term.normal_form][doc_id][zone]:
+                    if e.props == term.tag:
+                        idfs += self.log_p(term.normal_form)
+        return idfs * 0.03 ** n_miss
+
+    def w_phrase(self, doc_id, zone, terms):
+        tf = self.doc_length(doc_id, zone)
+        for term in terms:
+            if term.normal_form not in self \
+                    or doc_id not in self[term.normal_form] \
+                    or zone not in self[term.normal_form][doc_id]:
+                continue
+
+            for e in self[term.normal_form][doc_id][zone]:
+                if e.props == term.tag:
+                    tf = min(tf, len(self[term.normal_form][doc_id][zone]))
+        if tf == 0:
+            return tf
+        idfs = sum(self.log_p(term) for term in terms)
+        return idfs * tf / (1 + tf)
+
+    def w_half_phrase(self, doc_id, zone, terms):
+        tf = self.doc_length(doc_id, zone)
+        counter = 0
+        for term in terms:
+            if term.normal_form not in self \
+                    or doc_id not in self[term.normal_form] \
+                    or zone not in self[term.normal_form][doc_id]:
+                continue
+
+            for e in self[term.normal_form][doc_id][zone]:
+                if e.props == term.tag:
+                    tf = min(tf, len(self[term.normal_form][doc_id][zone]))
+                    counter += tf > 0
+        if 2 * counter < len(terms):
+            return 0
+        return sum(self.log_p(term) for term in terms) * tf / (1 + tf)
+
+    ZONE_COEFFICIENT = {'body': 1, 'title': 2, 'h1': 1.5}
+
+    def total_score(self, doc_id, query, p_type='p_on_topic'):
+        res = 0
+        sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
+        for zone in ['body', 'title', 'h1']:
+            sc = self.score(doc_id, zone, query)
+            res += self.ZONE_COEFFICIENT[zone] * sc
+        print('------------------')
+        print('{0:<20}: {1: 3.2f}'.format('total', res))
+        print('==================')
+        return res
 
     def w_single(self, doc_id, zone, terms):
+        terms = [t.normal_form for t in terms]
         res = 0
         k1 = 1
         k2 = 1 / 350
         for term in terms:
-            tf = self.index[term].tf(doc_id, zone)
+            if term not in self:
+                continue
+            tf = self[term].tf(doc_id, zone)
             l_p = self.log_p(term)
             res += l_p * tf / (tf + k1 + k2 * self.doc_length(doc_id, zone))
         return res
 
-    def w_pair(self, doc_id, zone, terms):
+    def _positions(self, doc_id, zone, term):
+        if term not in self:
+            return []
+        return [e.position for e in self.index[term].entries(doc_id, zone)]
 
+
+    def w_pair(self, doc_id, zone, terms):
+        terms = [t.normal_form for t in terms]
         if len(terms) < 2:
             return 0
         i = 0
         sum = 0
-        positions0 = [e.position for e in self.index[terms[0]].entries(doc_id, zone)]
-        positions1 = [e.position for e in self.index[terms[1]].entries(doc_id, zone)]
+        positions0 = self._positions(doc_id, zone, terms[0])
+        positions1 = self._positions(doc_id, zone, terms[1])
+
         s0 = self.log_p(terms[0])
         s1 = self.log_p(terms[1])
         while i+2 < len(terms):
             s2 = self.log_p(terms[2])
-            positions2 = [e.position for e in self.index[terms[i+2]].entries(doc_id, zone)]
+            positions2 = self._positions(doc_id, zone, terms[i+2])
             tf = double_tf(positions0, positions1)
             tf_spec = double_spec_tf(positions0, positions2)
             sum += (s0 + s1) * tf / (1 + tf)
@@ -207,10 +321,6 @@ class InvertedIndex:
         return sum
 
 
-
-
-
-
     def log_p(self, term, p_type='p_on_topic'):
         if p_type == 'p_on_topic':
             p = 1 - math.exp(-1.5 * self.IDF.prob(term))
@@ -219,6 +329,7 @@ class InvertedIndex:
         else:
             raise Exception('Wrong p_type')
         return abs(math.log(p))
+
 
 def double_tf(positions0, positions1):
     tf = 0
@@ -231,12 +342,14 @@ def double_tf(positions0, positions1):
             tf += 0.5
     return tf
 
+
 def double_spec_tf(positions0, positions2):
     tf = 0
     for p1 in positions0:
         if p1 + 1 in positions2:
             tf += 0.1
     return tf
+
 
 class DocumentLengthTable:
     def __init__(self):
@@ -269,10 +382,10 @@ class DocumentLengthTable:
             raise LookupError('%s not found in table' % str(docid))
 
     def get_average_length(self):
-        sum = 0
+        summat = 0
         for length in self.table.values():
-            sum += length
-        return float(sum) / float(len(self.table))
+            summat += length
+        return float(summat) / float(len(self.table))
 
 
 def all_entries(text, zone):
@@ -315,7 +428,7 @@ def read_wp_html(u):
     except:
         raise MyException()
 
-def write_wp_html(u,html):
+def write_wp_html(u, html):
     try:
         with open('{}.txt'.format(hash(u)), mode='w', encoding='utf8', errors='ignore') as f:
             f.write(html)
@@ -359,4 +472,4 @@ if __name__ == '__main__':
 
     for i in indx.doc_ids():
 
-        print(indx.score(i, 'купить сапоги'))
+        print(indx.total_score(i, 'купить rehnre'))

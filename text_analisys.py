@@ -90,101 +90,8 @@ def _text_sub(html_doc, rex):
     return p.sub(' ', html_doc)
 
 
-
-
-
-def _sum_p_tf(terms, tf, p_type):
-    if tf == 0:
-        return 0
-    s = 0
-    for term in terms:
-        s += log_p(term, p_type)
-    return s * tf / (1 + tf)
-
-
-
-
-
-
-def w_all_words(document, zone, terms, p_type):
-    n_miss = 0
-    idfs = 0
-    for term in terms:
-        if term not in document.tfs or document.tfs[term][zone] == 0:
-            n_miss += 1
-        else:
-            idfs += log_p(term, p_type)
-    return idfs * 0.03 ** n_miss
-
-
-def w_phrase(document, zone, query, p_type):
-    tf = 0
-    for sent in document.sent[zone]:
-        sent = sent.lower()
-        index = sent.find(query.lower())
-        if index != -1:
-            tf += 1
-    tokens = nltk.word_tokenize(query)
-    terms = _get_terms_from_tokens(tokens)
-    idfs = sum(log_p(term, p_type) for term in terms)
-    return idfs * tf / (1 + tf)
-
-
-def w_half_phrase(document, zone, terms, idfs, p_type):
-    idf = sum(idfs.values())
-    tf = 0
-    for sent in document.sent[zone]:
-        sent_terms = _get_term_list(sent.lower())
-        term_in_sent = [term for term in terms if term in sent_terms]
-        sent_idf = sum([idfs[term] for term in term_in_sent])
-        if sent_idf > 0.5 * idf:
-            tf += 1
-    return sum(log_p(term, p_type) for term in terms) * tf / (1 + tf)
-
-
-def total_score(document, query, p_type='p_on_topic'):
-    res = 0
-    for zone in ZONES:
-        sc = score(document, zone, query, p_type)
-        res += ZONE_COEFFICIENT[zone] * sc
-    print('------------------')
-    print('{0:<20}: {1: 3.2f}'.format('total', res))
-    print('==================')
-    return res
-
-
-def score(document, zone, query, p_type='p_on_topic'):
-    k0 = 0.3
-    k1 = 0.1
-    k2 = 0.2
-    k3 = 0.02
-    tokens = nltk.word_tokenize(query)
-    terms = _get_terms_from_tokens(tokens)
-    idfs = {}
-    with sqlite3.connect(os.path.join(DB_PATH, DB_FILE)) as con:
-        cur = con.cursor()
-        for term in terms:
-            fs = cur.execute('''SELECT Doc FROM freq WHERE Lemma = :term''', {'term': term}).fetchall()
-            if len(fs) == 0:
-                idfs[term] = NUM_DOCS / MIN_DF
-            else:
-                idfs[term] = NUM_DOCS / fs[0][0]
-    if len(terms) == 1:
-        return w_single(document, zone, terms, p_type)
-    w_s = w_single(document, zone, terms, p_type)
-    w_p = w_pair(document, zone, terms, p_type)
-    w_a = w_all_words(document, zone, terms, p_type)
-    w_ph = w_phrase(document, zone, query, p_type)
-    w_h = w_half_phrase(document, zone, terms, idfs, p_type)
-    res = w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
-    print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
-          ' + k3 * {6: 3.2f}'.format(document.id, res, w_s, w_p, w_a, w_ph, w_h, zone))
-    return w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
-
-
 def _find_common_terms(documents):
     return [term for term in documents[0].tfs if sum(int(term in doc.tfs) for doc in documents) >= 0.8 * len(documents)]
-
 
 
 def make_corp(readables, path):
@@ -217,7 +124,7 @@ if __name__ == '__main__':
     wl = []
     for fid in wordlists.fileids():
         for w in list(wordlists.words(fid)):
-            if not (w in punctuation or w in stop_words):
+            if not (w in punctuation or w in []):
                 wl.append(w)
 
     text1 = nltk.text.Text(wl)
