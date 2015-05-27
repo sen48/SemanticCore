@@ -146,6 +146,56 @@ if __name__ == "__main__":
     import pandas
     from search_query.ya_query import YaQuery
 
+    def mvp(semcorefile, fout_name, site, region):
+        import mvpa2.suite
+        num_res = 10
+        queries = [YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
+
+        # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'classic')
+        # metrics = lambda u, v: 1 - float(sum([int(i in v) for i in u])) / num_res
+        # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'CTR')
+        metrics = lambda u, v: 1 - sum([int(i in v) for i in u]) / num_res
+
+        vectors = [query.get_url_ids(num_res) for query in queries]
+        all_url_ids = _get_space_basis(vectors)  # - список всех различных id, встресающихся в serps
+        data = np.array([[int(url_id in serp)for url_id in all_url_ids] for serp in vectors])
+        import kohonen.kohonen
+        data_names = [q.query for q in queries]
+        N = 20
+        H = 30
+        par = kohonen.kohonen.Parameters(
+                 dimension=2,
+                 shape=(N, H),
+                 metric=None,
+                 learning_rate=0.05,
+                 neighborhood_size=None,
+                 noise_variance=None)
+
+        som = kohonen.kohonen.Map(par)
+        som.learn(data)
+        from PIL import ImageDraw
+        #text = "Python Imaging Library in Habr :)"
+        color = (0, 0, 120)
+        img = som.distance_heatmap(data)
+        imgDrawer = ImageDraw.Draw(img)
+        #imgDrawer.text((10, 20), text)
+
+        img.save("pil-example.png")
+        som = mvpa2.suite.SimpleSOMMapper((N, H), 100, learning_rate=0.05)
+        som.train(data)
+
+        mapped = som(data)
+
+        mvpa2.suite.pl.title('DATA SOM')
+        mvpa2.suite.pl.ylim([0, N])
+        mvpa2.suite.pl.xlim([0, H])
+        for i, m in enumerate(mapped):
+            print(i, m[1], m[0], data_names[i])
+            mvpa2.suite.pl.text(m[1], m[0], data_names[i], ha='center', va='center',
+                    bbox=dict(facecolor='white', alpha=0.5, lw=0))
+        mvpa2.suite.pl.savefig('b.png')
+
+
     def main(semcorefile, fout_name, site, region):
         num_res = 10
         queries = [YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
@@ -188,4 +238,5 @@ if __name__ == "__main__":
         data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
-    main('C:\\_Work\\trav\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 213)
+    # main('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)
+    mvp('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)

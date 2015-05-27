@@ -3,7 +3,7 @@ import math
 import nltk
 from string import punctuation
 from nltk.corpus import stopwords
-import pickle
+
 
 import pymorphy2
 punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
@@ -35,7 +35,6 @@ def _clear_term(term):
         else:
             s = 'a'
     return term
-
 
 
 def _get_terms_from_tokens(tokens):
