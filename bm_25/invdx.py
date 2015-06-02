@@ -4,8 +4,8 @@ import nltk
 from string import punctuation
 from nltk.corpus import stopwords
 
-
 import pymorphy2
+
 punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
 stop_words = stopwords.words('russian')
 stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нужный',
@@ -16,6 +16,7 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
                    'вследствие', 'знать', 'прийти', 'вдоль', 'вокруг', 'мочь', 'предлагать',
                    'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
                    'суть', 'очень', 'год', 'который', 'usd'])
+
 
 def _clear_term(term):
     s = term[-1]
@@ -57,19 +58,18 @@ def _get_term_list(text):
 
 
 def _get_par_from_tokens(tokens):
-    '''Analyze tokens and return a list of :class:``'''
+    """Analyze tokens and return a list of token.tag"""
     morph = pymorphy2.MorphAnalyzer()
     terms = []
     for tok in tokens:
         tok = _clear_term(tok)
         pr = morph.parse(tok)[0]
         term = pr.normal_form
-        if term in punctuation or term.isnumeric() or len(term) <= 1 or  term in stop_words:
+        if term in punctuation or term.isnumeric() or len(term) <= 1 or term in stop_words:
             continue
 
         terms.append(pr)
     return terms
-
 
 
 def _get_par_list(text):
@@ -99,8 +99,7 @@ def _read_idfs(file):
 
 
 class Entry:
-
-    def __init__(self, position, zone, props=None):
+    def __init__(self, position, props=None):
         self.position = position
         self.props = props
 
@@ -140,7 +139,6 @@ class PostingList:
         return self.posting_list[doc_id][zone]
 
 
-
 class InvertedIndex:
     p_type = 'idf'
 
@@ -165,16 +163,16 @@ class InvertedIndex:
         if term not in self.index:
             self.index[term] = PostingList()
         self.index[term].add(docid, zone, e)
-        print(e)
         self.doc_lens.update(docid, zone)
 
     def save(self, name):
-        with open('{}.pickle'.format(name), 'wb') as f:
-            pickle.dump(self, f)
+        with open('{}.pickle'.format(name), 'wb') as f_out:
+            pickle.dump(self, f_out)
 
-    def load(self, name):
-        with open('{}.pickle'.format(name), 'rb') as f:
-            return InvertedIndex(pickle.load(f))
+    @staticmethod
+    def load(name):
+        with open('{}.pickle'.format(name), 'rb') as fin:
+            return InvertedIndex(pickle.load(fin))
 
     # frequency of word in document
     def get_document_frequency(self, word, docid):
@@ -184,9 +182,8 @@ class InvertedIndex:
             return self.index[word].tf(docid)
         else:
             return 0
-            #raise LookupError('%s not in index' % str(word))
 
-    #frequency of word in index, i.e. number of documents that contain word
+    # frequency of word in index, i.e. number of documents that contain word
     def get_index_frequency(self, word):
         return self.IDF.freq(word)
 
@@ -208,9 +205,6 @@ class InvertedIndex:
         print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
               ' + k3 * {6: 3.2f}'.format(doc_id, res, w_s, w_p, w_a, w_ph, w_h, zone))
         return res
-
-
-
 
     def w_all_words(self, doc_id, zone, terms):
         n_miss = 0
@@ -261,7 +255,7 @@ class InvertedIndex:
 
     ZONE_COEFFICIENT = {'body': 1, 'title': 2, 'h1': 1.5}
 
-    def total_score(self, doc_id, query, p_type='p_on_topic'):
+    def total_score(self, doc_id, query):
         res = 0
         sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
         for zone in ['body', 'title', 'h1']:
@@ -290,35 +284,33 @@ class InvertedIndex:
             return []
         return [e.position for e in self.index[term].entries(doc_id, zone)]
 
-
     def w_pair(self, doc_id, zone, terms):
         terms = [t.normal_form for t in terms]
         if len(terms) < 2:
             return 0
-        i = 0
-        sum = 0
+        j = 0
+        summat = 0
         positions0 = self._positions(doc_id, zone, terms[0])
         positions1 = self._positions(doc_id, zone, terms[1])
 
         s0 = self.log_p(terms[0])
         s1 = self.log_p(terms[1])
-        while i+2 < len(terms):
+        while j + 2 < len(terms):
             s2 = self.log_p(terms[2])
-            positions2 = self._positions(doc_id, zone, terms[i+2])
+            positions2 = self._positions(doc_id, zone, terms[j + 2])
             tf = double_tf(positions0, positions1)
             tf_spec = double_spec_tf(positions0, positions2)
-            sum += (s0 + s1) * tf / (1 + tf)
-            sum += (s0 + s2) * tf_spec / (1 + tf_spec)
-            i += 1
+            summat += (s0 + s1) * tf / (1 + tf)
+            summat += (s0 + s2) * tf_spec / (1 + tf_spec)
+            j += 1
             positions0 = positions1
             positions1 = positions2
             s0 = s1
             s1 = s2
 
         tf = double_tf(positions0, positions1)
-        sum += (s0 + s1) * tf / (1 + tf)
-        return sum
-
+        summat += (s0 + s1) * tf / (1 + tf)
+        return summat
 
     def log_p(self, term, p_type='p_on_topic'):
         if p_type == 'p_on_topic':
@@ -369,7 +361,7 @@ class DocumentLengthTable:
 
     def update(self, docid, zone):
         if docid not in self.table:
-             self.table[docid] = dict()
+            self.table[docid] = dict()
         if zone not in self.table[docid]:
             self.table[docid][zone] = 0
         self.table[docid][zone] += 1
@@ -387,7 +379,7 @@ class DocumentLengthTable:
         return float(summat) / float(len(self.table))
 
 
-def all_entries(text, zone):
+def all_entries(text):
     entries = dict()
     morph = pymorphy2.MorphAnalyzer()
     pos = 0
@@ -398,9 +390,9 @@ def all_entries(text, zone):
         if term_nf in stop_words or term_nf in punctuation:
             continue
         if term_nf not in entries:
-                entries[term_nf] = list()
-        entries[term_nf].append(Entry(pos, zone, term[0].tag))
-        #print(entries[term_nf])
+            entries[term_nf] = list()
+        entries[term_nf].append(Entry(pos, term[0].tag))
+        # print(entries[term_nf])
     return entries
 
 
@@ -409,7 +401,7 @@ def build_idx(corpus_of_readable):
     for docid, c in enumerate(corpus_of_readable):
         # build inverted index
         for zone in ['body', 'title', 'h1']:
-            entries = all_entries(c.get_zone(zone), zone)
+            entries = all_entries(c.get_zone(zone))
             for term in entries:
                 for e in entries[term]:
                     idx.add(term, docid, zone, e)
@@ -420,49 +412,50 @@ class MyException(Exception):
     pass
 
 
-def read_wp_html(u):
+def read_wp_html(u, project='1'):
     try:
-        with open('{}.txt'.format(hash(u)), mode='r',  encoding='utf8', errors='ignore') as f:
-            return f.read()
+        with open('{}/{}.txt'.format(project, hash(u)), mode='r', encoding='utf8', errors='ignore') as fin:
+            return fin.read()
     except:
         raise MyException()
 
-def write_wp_html(u, html):
+
+def write_wp_html(u, html, project='1'):
     try:
-        with open('{}.txt'.format(hash(u)), mode='w', encoding='utf8', errors='ignore') as f:
-            f.write(html)
+        with open('{}/{}.txt'.format(project, hash(u)), mode='w', encoding='utf8', errors='ignore') as f_out:
+            f_out.write(html)
     except Exception as e:
         print(html.encode('utf8', errors='ignore'))
-        print('OOps'+str(e))
+        print('OOps' + str(e))
 
 
-def make_corp_file():
+def make_corp_file(f_name='C:\\_Work\\vostok\\2.txt'''):
     from text_analisys import Readable
     import search_query.ya_query as sps
     from search_query.content import WebPage
+
     readables = []
-    for q in sps.queries_from_file('C:\\_Work\\vostok\\2.txt', 213)[1:]:
+    for q in sps.queries_from_file(f_name, 213)[1:]:
         print(q.query)
         for u in q.get_urls(10):
+            try:
+                w = read_wp_html(u, 'v')
+            except MyException:
                 try:
-                    w = read_wp_html(u)
-                except MyException:
-                    try:
-                        w = WebPage(u).html()
-                    except:
-                        print(u)
-                        continue
-                    write_wp_html(u, w)
-                readables.append(Readable(w))
+                    w = WebPage(u).html()
+                except:
+                    print(u)
+                    continue
+                write_wp_html(u, w, 'v')
+            readables.append(Readable(w))
     return readables
-
 
 
 if __name__ == '__main__':
     import pickle
-    #try:
+    # try:
     with open('data.pickle', 'rb') as f:
-            indx = pickle.load(f)
+        indx = pickle.load(f)
     """except Exception as e:
 
     indx = build_idx(make_corp_file())
@@ -470,5 +463,4 @@ if __name__ == '__main__':
             pickle.dump(indx, f)"""
 
     for i in indx.doc_ids():
-
         print(indx.total_score(i, 'купить rehnre'))

@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist
-
 from core_clusterizetion.visual import plot_dendrogram
 import search_query.serps as wrs
 
@@ -147,19 +146,15 @@ if __name__ == "__main__":
     from search_query.ya_query import YaQuery
 
     def mvp(semcorefile, fout_name, site, region):
+        'Kohonen self-organizing map clusterization'
         import mvpa2.suite
+        import kohonen.kohonen
+        from PIL import ImageDraw
         num_res = 10
         queries = [YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
-
-        # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'classic')
-        # metrics = lambda u, v: 1 - float(sum([int(i in v) for i in u])) / num_res
-        # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'CTR')
-        metrics = lambda u, v: 1 - sum([int(i in v) for i in u]) / num_res
-
         vectors = [query.get_url_ids(num_res) for query in queries]
         all_url_ids = _get_space_basis(vectors)  # - список всех различных id, встресающихся в serps
         data = np.array([[int(url_id in serp)for url_id in all_url_ids] for serp in vectors])
-        import kohonen.kohonen
         data_names = [q.query for q in queries]
         N = 20
         H = 30
@@ -173,19 +168,11 @@ if __name__ == "__main__":
 
         som = kohonen.kohonen.Map(par)
         som.learn(data)
-        from PIL import ImageDraw
-        #text = "Python Imaging Library in Habr :)"
-        color = (0, 0, 120)
         img = som.distance_heatmap(data)
-        imgDrawer = ImageDraw.Draw(img)
-        #imgDrawer.text((10, 20), text)
-
         img.save("pil-example.png")
         som = mvpa2.suite.SimpleSOMMapper((N, H), 100, learning_rate=0.05)
         som.train(data)
-
         mapped = som(data)
-
         mvpa2.suite.pl.title('DATA SOM')
         mvpa2.suite.pl.ylim([0, N])
         mvpa2.suite.pl.xlim([0, H])
