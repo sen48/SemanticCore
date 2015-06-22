@@ -160,7 +160,6 @@ def read_serp(query, region, num_res):
         if row[1] - 1 < num_res:
             res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
     if any([not isinstance(v, SerpItem) for v in res]):
-        print(0)
         write_serp_db(query, region)
         rows = _read_from_db(get_serp, data_serp)
         for row in rows:

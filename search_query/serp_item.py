@@ -25,6 +25,7 @@ class SerpItem:
     def get_domain(self):
         return get_hostname(self.url)
 
+
     def _check_comm_inf_words(self, string):
 
         """

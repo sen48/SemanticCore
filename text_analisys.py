@@ -24,11 +24,18 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
 
 
 class Readable(read.Document):
+    """
+    Соотвестсвует основному содержимому web-страницы. Т.е. без воковых меню, шапок и подвалов.
+    """
 
     def __str__(self):
         return '<Readable object> {}'.format(self.title())
 
     def text(self):
+        """
+        Извлекает основной текст
+        :return: str
+        """
         soup = bs4.BeautifulSoup(self.summary())
         text = soup.get_text()
         '''text = text.replace('#', '').replace('↵', '').replace('↑', '').replace('°', '').replace('©', '').
@@ -39,7 +46,7 @@ class Readable(read.Document):
         text = p.sub('\n', text)
         return text
 
-    def get(self, tag):
+    def _get_tag(self, tag):
         doc = self._html(True)
         res = []
         for e in list(doc.iterfind('.//'+tag)):
@@ -56,10 +63,10 @@ class Readable(read.Document):
 
         :return: list of h1 texts
         """
-        return self.get('h1')[0]
+        return self._get_tag('h1')[0]
 
     def get_all_h2(self):
-        return self.get('h2')
+        return self._get_tag('h2')
 
     def get_zone(self, zone):
         if zone == 'body':
@@ -69,7 +76,7 @@ class Readable(read.Document):
         elif zone == 'h1':
             return self.h1()
         else:
-            return self.get(zone)[0]
+            return self._get_tag(zone)[0]
 
 
 class HttpCodeException(Exception):
@@ -86,30 +93,28 @@ def _text_sub(html_doc, rex):
     return p.sub(' ', html_doc)
 
 
-def _find_common_terms(documents):
-    return [term for term in documents[0].tfs if sum(int(term in doc.tfs) for doc in documents) >= 0.8 * len(documents)]
+def make_plain_text_files(queries_file, path):
+    """
 
-
-def make_corp(readable_docs, path):
-    for i, r in enumerate(readable_docs):
-        with open(os.path.join(path, str(i) + '.txt'), mode='w', encoding='utf8') as f_out:
-            f_out.write(r.title() + '/n' + r.text())
-
-
-def make_corp_file(path):
+    :param path:
+    """
     import search_query.ya_query as sps
-    from search_query.content import WebPage
     i = 0
-    for q in sps.queries_from_file('c:/_Work/lightstar/to_markers_ws.txt', 2)[1:]:
+    for q in sps.queries_from_file(queries_file, 2)[1:]:
         print(q.query)
-        for u in q.get_urls(10):
-            try:
-                r = Readable(WebPage(u).html())
-                with open(os.path.join(path, str(i) + '.txt'), mode='w', encoding='utf8') as f_out:
-                    f_out.write(r.title() + '/n' + r.text())
-                i += 1
-            except:
-                print(u)
+        make_plain_text_files_urls(q.get_urls(10),path)
+
+
+def make_plain_text_files_urls(urls, path):
+
+    from search_query.content import WebPage
+    for u in urls:
+        try:
+            r = Readable(WebPage(u).html())
+            with open(os.path.join(path, str(hash(u)) + '.txt'), mode='w', encoding='utf8') as f_out:
+                f_out.write(r.title() + '/n' + r.text())
+        except:
+            print(u)
 
 
 def collocations(corpus_dir):
@@ -120,21 +125,13 @@ def collocations(corpus_dir):
 
 if __name__ == '__main__':
     corpus_root = 'C:\\_Work\\lightstar\\corp'
-    # make_corp_file(corpus_root)
-    # print(collocations(corpus_root))
+    # make_plain_text_files('c:/_Work/lightstar/to_markers_ws.txt',corpus_root)
 
     corp = PlaintextCorpusReader(corpus_root, fileids='.+[.]txt')
     print('PlaintextCorpusRead')
     text1 = nltk.text.Text([tok for s in corp.sents() for tok in s if tok not in punctuation])
     print('Text')
     print(text1.collocations())
-    """print(wordlists.words('145.txt'))
-    wl = []
-    for fid in wordlists.fileids():
-        for w in list(wordlists.words(fid)):
-            if not (w in punctuation or w in []):
-                wl.append(w)
-    text1 = nltk.text.Text(wl)"""
     print(text1.similar("люстра"))
     print(text1.similar("торшер"))
     print(text1.similar("светильник"))
@@ -143,9 +140,8 @@ if __name__ == '__main__':
 
     morph = pymorphy2.MorphAnalyzer()
 
-    print('Text')
-
-    text1 = nltk.text.Text([tok for s in corp.sents() for tok in s if tok not in punctuation])
+    print('Text_term')
+    del text1
     wl = []
     for s in corp.sents():
         for tok in s:
@@ -153,7 +149,6 @@ if __name__ == '__main__':
                 tm = morph.parse(tok)[0].normal_form
                 if tm not in stop_words:
                     wl.append(tm)
-
     text1 = nltk.text.Text(wl)
     print(text1.collocations())
     print(text1.similar("люстра"))
@@ -163,10 +158,5 @@ if __name__ == '__main__':
     print(text1.common_contexts(["люстра", "торшер"]))
 
     fdist1 = nltk.FreqDist(text1)
-    # lapprob = nltk.LaplaceProbDist(fdist1)
-    # print(lapprob.prob('Полная'))
-    # print(lapprob.prob('оффшор'))
-    # print(fdist1.most_common())
-
     fdist1.plot(500, cumulative=False)
     # print(nltk.pos_tag(text1))

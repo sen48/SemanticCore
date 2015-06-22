@@ -151,6 +151,7 @@ class Document:
         try:
             ruthless = True
             while True:
+                print(self.title())
                 self._html(True)
                 for i in self.tags(self.html, 'script', 'style'):
                     i.drop_tree()

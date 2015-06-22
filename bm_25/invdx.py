@@ -3,6 +3,8 @@ import math
 import nltk
 from string import punctuation
 from nltk.corpus import stopwords
+import collections
+import pickle
 
 import pymorphy2
 
@@ -109,7 +111,7 @@ class Entry:
 
 class PostingList:
     def __init__(self):
-        self.posting_list = dict()
+        self.posting_list = collections.defaultdict(lambda: collections.defaultdict(list()))
 
     def __contains__(self, item):
         return item in self.posting_list
@@ -414,7 +416,7 @@ class MyException(Exception):
 
 def read_wp_html(u, project='1'):
     try:
-        with open('{}/{}.txt'.format(project, hash(u)), mode='r', encoding='utf8', errors='ignore') as fin:
+        with open('{}+{}.txt'.format(project, hash(u)), mode='r', encoding='utf8', errors='ignore') as fin:
             return fin.read()
     except:
         raise MyException()
@@ -422,14 +424,14 @@ def read_wp_html(u, project='1'):
 
 def write_wp_html(u, html, project='1'):
     try:
-        with open('{}/{}.txt'.format(project, hash(u)), mode='w', encoding='utf8', errors='ignore') as f_out:
+        with open('{}+{}.txt'.format(project, hash(u)), mode='w', encoding='utf8', errors='ignore') as f_out:
             f_out.write(html)
     except Exception as e:
         print(html.encode('utf8', errors='ignore'))
         print('OOps' + str(e))
 
 
-def make_corp_file(f_name='C:\\_Work\\vostok\\2.txt'''):
+def get_html_files(f_name='C:\\_Work\\vostok\\2.txt'''):
     from text_analisys import Readable
     import search_query.ya_query as sps
     from search_query.content import WebPage
@@ -452,10 +454,11 @@ def make_corp_file(f_name='C:\\_Work\\vostok\\2.txt'''):
 
 
 if __name__ == '__main__':
-    import pickle
+    indx = build_idx(get_html_files())
+    #import pickle
     # try:
-    with open('data.pickle', 'rb') as f:
-        indx = pickle.load(f)
+    #with open('data.pickle', 'rb') as f:
+        #indx = pickle.load(f)
     """except Exception as e:
 
     indx = build_idx(make_corp_file())

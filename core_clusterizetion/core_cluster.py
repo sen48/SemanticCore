@@ -225,5 +225,5 @@ if __name__ == "__main__":
         data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
-    # main('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)
-    mvp('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)
+    main('C:\\_Work\\vartbis\\to_clust.txt', 'c:\\_Work\\vartbis\\result_clust_2.csv', 'vartbis.ru', 213)
+    #mvp('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)
