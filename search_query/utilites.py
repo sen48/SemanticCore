@@ -1,5 +1,8 @@
 __author__ = 'lvova'
 
+def ctr(position):
+    return 34.16200393 / position - 0.83594252
+
 
 def split_duration(current_conversion_rate, delta, number_of_variations, visitors_per_day, visitors_in_experiment_rate):
 

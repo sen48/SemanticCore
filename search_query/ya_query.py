@@ -78,6 +78,7 @@ class YaQuery:
                 упорядоченный по позиции в выдаче список idшников urlов в БД длиной top,
                 соответствующий ТОП{top} поисковой выдачи
         """
+        print(self.query)
         return [item.url_id for item in self.get_serp(top)]
 
     def get_domains(self, top):
