@@ -1,14 +1,17 @@
 import os
 import re
+import math
 import nltk
 import nltk.text
-import pymorphy2
+import pickle
+import numpy
 from read.htmls import norm_title
 import read
 from string import punctuation
 from nltk.corpus import stopwords
 from nltk.corpus import PlaintextCorpusReader
 import bs4
+from search_query import ya_query
 
 stop_words = stopwords.words('russian')
 stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нужный',
@@ -124,7 +127,34 @@ def collocations(corpus_dir):
 
 
 if __name__ == '__main__':
-    corpus_root = 'C:\\_Work\\lightstar\\corp'
+    '''import search_query.serps as wrs
+    semcorefile = 'C:\\_Work\\lightstar\\to_filter.csv'
+    region = 213
+    #num_res = 10
+    queries = [ya_query.YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
+    comp = []
+    for i, q in enumerate(queries):
+        try:
+            comp.append(q.competitiveness( 10))
+        except:
+            pass
+        print(i, '{', q.query, ':', comp[-1], '}')
+    print('done')
+
+    pickle.dump(comp, open("comp", mode='wb'))'''
+
+    comp = pickle.load(open("comp", mode='rb'))
+
+
+    import pylab as pl
+    pl.figure()
+    pl.plot([i for i in range(len(comp))], sorted(comp, reverse=True))
+    #pl.hist(comp, 50)
+    pl.show()
+
+
+
+    """corpus_root = 'C:\\_Work\\lightstar\\corp'
     # make_plain_text_files('c:/_Work/lightstar/to_markers_ws.txt',corpus_root)
 
     corp = PlaintextCorpusReader(corpus_root, fileids='.+[.]txt')
@@ -159,4 +189,4 @@ if __name__ == '__main__':
 
     fdist1 = nltk.FreqDist(text1)
     fdist1.plot(500, cumulative=False)
-    # print(nltk.pos_tag(text1))
+    # print(nltk.pos_tag(text1))"""

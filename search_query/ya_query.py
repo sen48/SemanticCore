@@ -161,7 +161,7 @@ class YaQuery:
 
     def complexity(self, site, top):
         """
-        Мера сложности продвижения, чем больше значение, тем сложнее продвигать. Не нормированна.
+        Мера сложности продвижения, чем больше значение, тем сложнее продвигать. Не нормирована.
         Parameters
         ----------
         top: int
@@ -173,7 +173,9 @@ class YaQuery:
         меры конкурентности запроса на логорифм позиции, занимаемой сайтом в выдачи
         """
         position = self.get_position_page(site)[0]
-        return self.competitiveness(top) * math.log(position)
+        if position == 0:
+            position = 200
+        return self.competitiveness(top) * math.log(position+1, 2)
 
 
 def _norm_string(string):
