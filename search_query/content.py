@@ -345,6 +345,11 @@ class WebPage:
             prices = p_value.findall(self.html())
         return len(prices)
 
+    def is_advertising_on_page(self):
+         p = re.compile(r'(?:adsbygoogle|yandex_ad)', flags=re.IGNORECASE)
+         return len(p.findall(self.html())) > 0
+
+
     def is_ask_q_on_page(self):
         p = re.compile(r'>[\s]*(?:задать вопрос|отправить сообщение)[\s]*<', flags=re.IGNORECASE)
         return len(p.findall(self.html())) > 0
@@ -399,6 +404,23 @@ class WebPage:
         v = _vote(markers, m)
         return v
 
+    def count_commercial(self):
+        res = self.is_basket_on_page() > 0
+        res += self.is_payment_on_page() > 0
+        res += self.is_price_list_on_page() > 0
+        res += self._find_offer() > 0
+        res += self.count_buy_buttons() > 0
+        res += self.count_prices() > 0
+        return res
+
+    def count_informational(self):
+        res = len(self.text()) > 1000
+        res += 3 * (self.is_advertising_on_page() > 0)
+        res += self.is_video_on_page() > 0
+
+        return res
+
+
     def compare_texts(self, pages):
         # TODO: write body
         texts = [pg.text() for pg in pages]
@@ -409,22 +431,6 @@ class WebPage:
                 res.append(word)
         return res
 
-    def score(self, query, invdx):
-        k0 = 0.3
-        k1 = 0.1
-        k2 = 0.2
-        k3 = 0.02
-
-
-        w_s = w_single(document, zone, terms, p_type)
-        w_p = w_pair(document, zone, terms, p_type)
-        w_a = w_all_words(document, zone, terms, p_type)
-        w_ph = w_phrase(document, zone, query, p_type)
-        w_h = w_half_phrase(document, zone, terms, idfs, p_type)
-        res = w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
-        print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
-              ' + k3 * {6: 3.2f}'.format(document.id, res, w_s, w_p, w_a, w_ph, w_h, zone))
-        return w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
 
     def gz_rate(self):
         """

@@ -1,11 +1,13 @@
-import functools
-import statistics
 import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist
+import bad_queries_selection
 from core_clusterizetion import forel
 from core_clusterizetion import graph_metods as gm
 import search_query.serps as wrs
+import text_analisys
+import pickle
+from scipy.spatial.distance import squareform
 
 
 class ClusterException(Exception):
@@ -175,13 +177,15 @@ if __name__ == "__main__":
     from search_query.ya_query import YaQuery
 
     def mvp(semcorefile, fout_name, site, region):
-        'Kohonen self-organizing map clusterization'
+        '''Kohonen self-organizing map clusterization
+
+        '''
+
         import mvpa2.suite
         import kohonen.kohonen
-        from PIL import ImageDraw
         num_res = 10
         queries = [YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
-        data = get_queries_vectors(queries,num_res, True)
+        data = get_queries_vectors(queries, num_res, True)
 
         data_names = [q.query for q in queries]
         N = 20
@@ -213,33 +217,70 @@ if __name__ == "__main__":
 
     def main(semcorefile, fout_name, site, region):
         num_res = 10
-        queries = [YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
+        queries = bad_queries_selection.get_queries(semcorefile, region)
 
+        fdist = text_analisys.words_freq([query.query for query in queries])
+
+        print(fdist.most_common(50))
         # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'classic')
         # metrics = lambda u, v: 1 - float(sum([int(i in v) for i in u])) / num_res
         # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'CTR')
         metrics = lambda u, v: 1 - sum([int(i in v) for i in u]) / num_res
-        #z = queries_linkage(queries, 10, 'average', metrics)
 
-        #fcl0 = fcluster(z, 0.95)
-        #fcl1 = fcluster(z, 0.9)
-        #fcl2 = fcluster(z, 0.8)
+        # serps = [query.get_serp(num_res) for query in queries]
+        # print(len(serps))
+        # pickle.dump(serps, open('serps', mode='wb'))
+        serps = pickle.load(open('serps', mode='rb'))
 
-        #dist = forel._norm_pdist(pdist([query.get_url_ids(num_res) for query in queries], metrics))
-        import pickle
+        inf = [sum([item.count_informational() > item.count_commercial() for item in s]) for s in serps]
+        com = [sum([item.count_informational() < item.count_commercial() for item in s]) for s in serps]
+        new_queries_indx = [i for i, q in enumerate(queries) if inf[i] < com[i]]
+        print(len(new_queries_indx))
+
+
+        qs = [q for i, q in enumerate(queries) if i in new_queries_indx]
+        queries = qs
+
+
+        ids = [[item.url_id for item in s] for i, s in enumerate(serps) if i in new_queries_indx]
+        dist = forel._norm_pdist(pdist([id for id in ids], metrics))
+
         #pickle.dump(dist, open('dist', mode='wb'))
-        dist = pickle.load(open('dist', mode='rb'))
+        #dist = pickle.load(open('dist', mode='rb'))
 
-        print('st')
+
+
+
+
+
+        # z = queries_linkage(queries, 10, 'average', metrics)
+        z = sch.linkage(squareform(dist), method='average', metric=metrics)
+        print('linkage OK')
+
+        fcl0 = fcluster(z, 0.95)
+        fcl1 = fcluster(z, 0.9)
+        fcl2 = fcluster(z, 0.8)
+        fcl3 = fcluster(z, 0.7)
+        fcl4 = fcluster(z, 0.6)
+        fcl5 = fcluster(z, 0.5)
+        print('Algomerative ok')
+
         '''fcl3 = renumerate(forel.forel(dist, 0.9)[0])
         #fcl4 = renumerate(forel.forel(dist, 0.9)[0])
         #fcl5 = renumerate(forel.forel(dist, 0.9)[0])
         for i in range(100):
-            print(forel.forel(dist, 0.9)[1])
+            print(forel.forel(dist, 0.9)[1])'''
 
-        fcl =  # [fcl0, fcl1, fcl2, fcl3, fcl4, fcl5]
-        for i, f in enumerate(fcl):
-            print('{}: F0:{:.4}; F1:{:.4}; N:{}'.format(i+1, F0(f, dist), F1(f, dist), max(f)))'''
+
+
+        fcl = [fcl0, fcl1, fcl2, fcl3, fcl4, fcl5]
+
+
+
+        print_clusters(fcl, queries, site, fout_name)
+        #plot_dendrogram(z, fcl=fcl[0], fig=1, labels=[q.query for q in queries])
+
+
         clusters = forel.forel_for_skat(dist, 0.9)[0]
         print(len(clusters))
 
@@ -270,16 +311,6 @@ if __name__ == "__main__":
         print(M)
         print(len(clusters_of_cluster_nums))
 
-
-
-
-
-
-
-
-        #print_clusters(fcl, queries, site, fout_name)
-        #plot_dendrogram(z, fcl=fcl[0], fig=1, labels=[q.query for q in queries])
-
     def print_clusters(fcls, queries, site, report_file):
 
         """
@@ -296,10 +327,16 @@ if __name__ == "__main__":
         ps = [0 for query in queries]  # [wrs.read_url_position(site, query.query,  query.region) for query in queries]
         pos = [p for p in ps]  # [p[0] for p in ps]
         pgs = [p for p in ps]  # [p[1].url for p in ps]
-        array = [[query.query for query in queries]]
-        array += fcls
-        array += [pos, pgs]
+        array = [[],[],[],[],[],[],[],[],[]]
+        array[0] = [query.query for query in queries]
+        print([query.query for query in queries])
+        print(array[0])
+        array[1:7] = fcls
+        array[7:9] = [pos, pgs]
+        print(len(columns))
+        print(np.array(array).shape)
         data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
+        print('Ok')
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
     main('C:\\_Work\\lightstar\\to_filter.txt', 'c:\\_Work\\lightstar\\result_clust_4.csv', 'lightstar.ru', 213)

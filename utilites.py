@@ -1,5 +1,6 @@
 __author__ = 'lvova'
 
+
 def ctr(position):
     return 34.16200393 / position - 0.83594252
 

@@ -18,32 +18,20 @@ from sklearn.decomposition import PCA
 import networkx as nx
 import igraph as ig
 
-stopwords = ['где', 'как', 'фото', 'своими руками', 'видео', 'скачать', 'бесплатно', 'икея', 'леруа', 'мерлен',
-             'официальный сайт', 'мастер класс', 'подключить', 'подручных', 'сломалась', 'ремонт', 'к чему', 'что',
-             'какую']
+minuswords = ['где', 'как', 'фото', 'своими руками', 'видео', 'скачать', 'бесплатно', 'икея', 'леруа', 'мерлен',
+              'официальный сайт', 'мастер класс', 'подключить', 'подручных', 'сломалась', 'ремонт', 'к чему', 'что',
+              'какую', 'ютуб', 'youtube', 'форум']
 cities = []
 
 
-def get_queries():
-    print("getting queries")
-    queries = queries_from_file('c:/_Work/vostok/to_clust.csv', 213)
-    num_res = 10
-    queries_new = []
-    counter = 0
-    for query in queries:
-        if counter == 5000:
-            break
-        if any(word in query.query for word in stopwords):
-            continue
-        queries_new.append(query)
-        counter += 1
-    return queries_new
+def get_queries(file, region):
+    p = [query for query in queries_from_file(file, region) if all(word not in query.query for word in minuswords)]
+    return p
 
 
 def get_vecs(url_or_dom, fname, num_res=10, ):
     if url_or_dom not in ['url', 'hostname']:
         raise Exception('ddd')
-
 
     vectors = np.zeros((num_points, num_res))
     all_domains = []
@@ -121,7 +109,7 @@ def remove_queries(G, threshold=0.4):
 
 if __name__ == '__main__':
 
-    queries = get_queries()
+    queries = get_queries('c:/_Work/vostok/to_clust.csv', 213)
     num_points = len(queries)
 
     num_res = 10

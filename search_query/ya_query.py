@@ -44,6 +44,7 @@ class YaQuery:
             упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
             соответствующий ТОП{top} поисковой выдачи
         """
+        print(self.query)
         return wrs.read_serp(self.query, self.region, top)
 
     def get_position_page(self, site):

@@ -5,6 +5,7 @@ import nltk
 import nltk.text
 import pickle
 import numpy
+import pymorphy2
 from read.htmls import norm_title
 import read
 from string import punctuation
@@ -124,6 +125,16 @@ def collocations(corpus_dir):
     word_lists = PlaintextCorpusReader(corpus_dir, fileids='.+[.]txt')
     text = nltk.text.Text([token for sentence in word_lists.sents() for token in sentence if token not in punctuation])
     return text.collocations()
+
+from nltk.compat import Counter
+
+def words_freq(sents):
+    morph = pymorphy2.MorphAnalyzer()
+    text1 = Counter([morph.parse(tok)[0].normal_form
+                            for s in sents
+                            for tok in nltk.word_tokenize(s)
+                            if tok not in punctuation and tok not in stop_words])
+    return nltk.FreqDist(text1)
 
 
 if __name__ == '__main__':
