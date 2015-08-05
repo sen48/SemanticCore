@@ -44,7 +44,7 @@ class YaQuery:
             упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
             соответствующий ТОП{top} поисковой выдачи
         """
-        print(self.query)
+        #print(self.query)
         return wrs.read_serp(self.query, self.region, top)
 
     def get_position_page(self, site):
@@ -127,7 +127,7 @@ class YaQuery:
                 сумма числа вхождений слов-маркеров коммерческости запроса в urlы,
                 titleы, snippetы ТОП{top} поисковой выдачи по данному запросу
         """
-        return sum([item.count_commercial(top) for item in self.get_serp(top)])
+        return sum([item.count_commercial() for item in self.get_serp(top)])
 
     def count_informational(self, top):
         """
@@ -142,7 +142,7 @@ class YaQuery:
                 сумма числа вхождений слов-маркеров информационности запроса в urlы,
                  titleы, snippetы ТОП{n} поисковой выдачи по данному запросу
         """
-        return sum([item.count_informational(top) for item in self.get_serp(top)])
+        return sum([item.count_informational() for item in self.get_serp(top)])
 
     def competitiveness(self, top):
         """
@@ -206,3 +206,4 @@ def queries_from_file(kernel_file, region):
         return queries
     except IOError as er:  # Обработка отсутствия файла
         print(u'Can\'t open the "{0}" file'.format(er.filename))
+        raise er

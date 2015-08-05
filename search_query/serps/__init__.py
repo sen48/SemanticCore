@@ -127,7 +127,7 @@ def read_serp(query, region, num_res):
     :return: tuple, упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
         соответствующий ТОП{top} поисковой выдачи
     """
-
+    #print(query)
     get_serp = '''SELECT
                         urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet
                   FROM
@@ -267,6 +267,12 @@ def unquote(url):
             new_url = urllib.parse.unquote(url, encoding='koi8-r', errors='strict')
     return new_url
 
+if __name__ == '__main__':
+    queries = [
+               'спецодежда для строителей',
 
-#write_serp_db("купить кварцевый песок в москве", 213, 100)
+                ]
+    for q in queries:
+        print(q)
+        write_serp_db(q, 213, 10)
 

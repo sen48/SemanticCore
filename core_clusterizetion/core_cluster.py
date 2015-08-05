@@ -227,10 +227,10 @@ if __name__ == "__main__":
         # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'CTR')
         metrics = lambda u, v: 1 - sum([int(i in v) for i in u]) / num_res
 
-        # serps = [query.get_serp(num_res) for query in queries]
-        # print(len(serps))
+        serps = [query.get_serp(num_res) for query in queries]
+        print(len(serps))
         # pickle.dump(serps, open('serps', mode='wb'))
-        serps = pickle.load(open('serps', mode='rb'))
+        #serps = pickle.load(open('serps', mode='rb'))
 
         inf = [sum([item.count_informational() > item.count_commercial() for item in s]) for s in serps]
         com = [sum([item.count_informational() < item.count_commercial() for item in s]) for s in serps]
@@ -305,7 +305,9 @@ if __name__ == "__main__":
             new_clusters.append([])
             for num in cluster_of_nums:
                 new_clusters[-1] += clusters[num]
-                print([queries[i].query for i in clusters[num]])
+                for i in clusters[num]:
+                    print(queries[i].query)
+                print(' ')
             print('+++++++++++++++++++++++++++++++++')
         print('===================================================')
         print(M)
@@ -339,5 +341,5 @@ if __name__ == "__main__":
         print('Ok')
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
-    main('C:\\_Work\\lightstar\\to_filter.txt', 'c:\\_Work\\lightstar\\result_clust_4.csv', 'lightstar.ru', 213)
+    main('C:\\_Work\\vostok\\to_clust_prav.txt', 'c:\\_Work\\vostok\\result_clust_4.csv', 'lightstar.ru', 213)
     #mvp('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)

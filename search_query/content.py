@@ -7,10 +7,24 @@ from grab import Grab
 import urllib
 import bs4
 import bs4.element
-import nltk
+import grab
 import read
 import bm_25.invdx as bm
-
+import text_analisys
+import pymorphy2
+import nltk
+from string import punctuation
+from nltk.corpus import stopwords
+stop_words = stopwords.words('russian')
+stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нужный',
+                   'перед', 'весь', 'хотеть', 'цель', 'сказать', 'ради', 'самый', 'согласно',
+                   'около', 'быстрый', 'накануне', 'неужели', 'понимать', 'ввиду', 'против',
+                   'близ', 'поперёк', 'никто', 'понять', 'вопреки', 'твой', 'объектный',
+                   'вместо', 'идеальный', 'целевой', 'сила', 'благодаря', 'знаешь',
+                   'вследствие', 'знать', 'прийти', 'вдоль', 'вокруг', 'мочь', 'предлагать',
+                   'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
+                   'суть', 'очень', 'год', 'который', 'usd'])
+morth = pymorphy2.MorphAnalyzer()
 
 def _get_attr(t, attribute):
     if not t:
@@ -55,6 +69,42 @@ class WebPage:
         self._g.setup()
         self._g.go(quote(url))
         self.doc = self._g.doc
+
+    def RetTic(self):
+        import urllib
+        yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
+
+        f = urllib.urlopen(yurl)
+        st = f.read()
+        import re
+        m = re.search(r'value="([0-9]{1,5})"', st)
+
+        try:
+            tic = m.group(1)
+        except:
+            tic = 0
+        return tic
+
+    def RetYaca(self):
+        'наличие сайта в яндекс каталоге на Python'
+        import urllib
+        yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
+
+        f = urllib.urlopen(yurl)
+        st = f.read()
+        import re
+        m = re.search(r'<textinfo>(?P<author>[\W\w]+)</textinfo>', st)
+
+        try:
+            yaca = m.group(1)
+            print(yaca)
+        except:
+            yaca = ''
+
+        if len(yaca) > 2:
+            return True
+        else:
+            return False
 
     def get_phones(self):
         phone_pattern = re.compile(r'(?:^|[>"\s])(?:т[.]\D*|тел[.]\D*|телефон\D*)'
@@ -114,7 +164,20 @@ class WebPage:
         return self.doc.unicode_body()
 
     def title(self):
-        return self.doc.select('//title')[0]
+        try:
+            return self.doc.select('//title')[0].text()
+        except (grab.error.DataNotFound, IndexError):
+            return 'no-title'
+
+    def description(self):
+        try:
+            p = self.doc.select('//meta[@name="description"]').node().get('content')
+            return p
+        except grab.error.DataNotFound:
+            return 'no-description'
+
+    #def get_read_doc(self):
+    #    return read.Document(self.html())
 
     def readable(self):
         return read.Document(self.html()).summary()
@@ -130,6 +193,9 @@ class WebPage:
         p = re.compile(r'[\n\r][\n\r \t\a]+')
         text = p.sub('\n', text)
         return text
+
+    def text_len(self):
+        return len(self.text())
 
     def is_online_consultant_on_page(self):
         p = re.compile(r'livetex.ru/js/client.js|web.redhelper.ru/service/main.js|static.cloudim.ru/js/chat.js|'
@@ -349,7 +415,6 @@ class WebPage:
          p = re.compile(r'(?:adsbygoogle|yandex_ad)', flags=re.IGNORECASE)
          return len(p.findall(self.html())) > 0
 
-
     def is_ask_q_on_page(self):
         p = re.compile(r'>[\s]*(?:задать вопрос|отправить сообщение)[\s]*<', flags=re.IGNORECASE)
         return len(p.findall(self.html())) > 0
@@ -420,9 +485,7 @@ class WebPage:
 
         return res
 
-
     def compare_texts(self, pages):
-        # TODO: write body
         texts = [pg.text() for pg in pages]
         text = _text_to_list(self.text())
         res = list()
@@ -430,6 +493,27 @@ class WebPage:
             if word not in text:
                 res.append(word)
         return res
+
+    def compare_titles(self, pages):
+        # TODO: write body
+        texts = [pg.title() for pg in pages]
+        text = _text_to_list(self.title())
+        res = list()
+        for word in _common_words(texts):
+            if word not in text:
+                res.append(word)
+        return res
+
+    def compare_descriptions(self, pages):
+        # TODO: write body
+        texts = [pg.description() for pg in pages]
+        text = _text_to_list(self.description())
+        res = list()
+        for word in _common_words(texts):
+            if word not in text:
+                res.append(word)
+        return res
+
 
 
     def gz_rate(self):
@@ -445,34 +529,26 @@ class WebPage:
         return float(n) / n_compressed
 
 
-'''def _text_to_list(text):
-    morth = pymorphy2.MorphAnalyzer()
+def _text_to_list(text):
     res = list()
     for word in nltk.word_tokenize(text):
         word = morth.parse(word)[0].normal_form
         if word in punctuation or word in stop_words:
             continue
         res.append(word)
-    return res'''
+    return res
 
 
 def _common_words(texts):
     corpus = [_text_to_list(text) for text in texts]
-    idx, dlt = bm.build_data_structures(corpus)
-    common_words = list()
-    for word in idx.index:
-        weight = 0
-        for docid in range(len(texts)):
-            weight += int(idx.get_document_frequency(word, docid) != 0) / len(texts)
-        if weight > 0.7:
-            common_words.append(word)
-    return common_words
+    fdist = set([tok for s in corpus for tok in s])
+
+    return [tok for tok in fdist if sum([tok in s for s in corpus]) > 7]
 
 
 def _accept(values, val):
     mean = statistics.mean(values)
     sigma = statistics.stdev(values)
-    print('mean: {}; sigma: {}'.format(mean, sigma))
     return mean - sigma <= val <= mean + sigma
 
 
@@ -481,9 +557,9 @@ def _vote(marker_dics, m):
     for ind in m:
         values = [markers[ind] for markers in marker_dics]
         val = m[ind]
-        print(ind)
-        print(val)
-        print(values)
+        #print(ind)
+        #print(val)
+        #print(values)
         acceptable[ind] = _accept(values, val)
     cols = [k for k in acceptable if not acceptable[k]]
     return cols
@@ -508,14 +584,32 @@ def quote(url):
 
 
 if __name__ == '__main__':
-    '''import search_query.serps as wrs
+    import search_query.serps as wrs
+    semcorefile = 'C:\\_Work\\vostok\\to_clust_prav.txt'
+    queries = ['очки для сварщиков']#wrs.queries_from_file(semcorefile)
 
-    queries = ['спецодежда']
-    for query in queries:
+    for i, query in enumerate(queries):
+        print(query)
+
         serp_items = wrs.read_serp(query, 213, 10)
-        pgs = [WebPage(item.url) for item in serp_items]
-        pos, serp_item = wrs.read_url_position('shop.vostok.ru', query, 213)
+        pgs = []
+        for item in serp_items:
+            print(item.url)
+            try:
+                pgs.append(WebPage(item.url))
+            except grab.error.GrabTooManyRedirectsError:
+                continue
+
+        pos, serp_item = wrs.read_url_position('vostok.ru', query, 213)
+        print(pos)
         print(serp_item.url)
         pg = WebPage(serp_item.url)
         #print(pg.compare(pgs))
-        print(pg.compare_texts(pgs))'''
+
+
+        print([p.text_len() for p in pgs ])
+        print(pg.text_len())
+
+        print('text:', pg.compare_texts(pgs))
+        print('title:', pg.compare_titles(pgs))
+        print('description:', pg.compare_descriptions(pgs))
