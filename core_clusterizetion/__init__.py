@@ -136,9 +136,9 @@ def _renumerate(fcl):
 
     # создается список пар (номер класстера, количество элементов в этом класстере) для всех номеров класстеров
     # и упорядочевается по убыванию кол-ва элементов
-    pais = [(k, sum([f == k for f in fcl])) for k in range(1, max(fcl) + 1)].sort(key=lambda x: -x[1])
+    pairs = sorted([(k, sum([f == k for f in fcl])) for k in range(1, max(fcl) + 1)], key=lambda x: -x[1])
     # создается словарь, где старым номерам класстеров соответствуют новые, в порядке убывания кол-ва эл-тов
-    order = {p[0]: i+1 for i, p in enumerate(pais)}
+    order = {p[0]: i+1 for i, p in enumerate(pairs)}
     # возвращается новый fcl, где старые номера заменяются на новые
     return [order[k] for k in fcl]
 
@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
     def main(semcorefile, fout_name, region):
         num_res = 10
-        queries = [queries_from_file(semcorefile, 213)]
+        queries = queries_from_file(semcorefile, region)
 
         # metrics = lambda u, v: competitiveness.rating_dist(u, v, 'classic')
         # metrics = lambda u, v: 1 - float(sum([int(i in v) for i in u])) / num_res
@@ -180,13 +180,15 @@ if __name__ == "__main__":
         columns = ['запрос']
         columns += fcl_cols
         columns += ['соотв позиция', 'соотв стр']
-        ps = [wrs.read_url_position('shop.vostok.ru', query)[0] for query in queries]
+        ps = [wrs.read_url_position('shop.vostok.ru', query.query, query.region) for query in queries]
         pos = [p[0] for p in ps]
         pgs = [p[1].url for p in ps]
-        array = [query.query for query in queries]
+        array = [[query.query for query in queries]]
         array += fcls
         array += [pos, pgs]
+        print(len(array))
+        print([len(a) for a in array])
         data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
-    main('C:\\_Work\\vostok\\to_test.txt', 'c:\\_Work\\vostok\\result_test.csv', 213)
+    main('C:\\_Work\\vostok\\to_clust.txt', 'c:\\_Work\\vostok\\result_test.csv', 213)

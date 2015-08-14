@@ -11,22 +11,9 @@ from string import punctuation
 from nltk.corpus import stopwords
 from nltk.compat import Counter
 import bs4
-from search_query import ya_query
+
 
 stop_words = stopwords.words('russian')
-#stop_words.extend(['наш', 'ваш', ])
-"""'это', 'дата', 'смочь', 'хороший', 'нужный',
-                   'перед', 'весь', 'хотеть', 'цель', 'сказать', 'ради', 'самый', 'согласно',
-                   'около', 'быстрый', 'накануне', 'неужели', 'понимать', 'ввиду', 'против',
-                   'близ', 'поперёк', 'никто', 'понять', 'вопреки', 'твой', 'объектный',
-                   'вместо', 'идеальный', 'целевой', 'сила', 'благодаря', 'знаешь',
-                   'вследствие', 'знать', 'прийти', 'вдоль', 'вокруг', 'мочь', 'предлагать',
-                   'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
-                   'суть', 'очень', 'год', 'который', 'usd', 'ваше', 'ваш', 'ваша',
-                   'ещё', 'также', 'кроме', 'может', 'мочь'])"""
-
-# ZONE_COEFFICIENT = {'body': 1.0, 'title': 2, 'h1': 1.5, 'h2': 1.25, 'h3': 1.125, 'alt': 1.0}
-
 
 class Readable(read.Document):
     """
@@ -144,13 +131,12 @@ def load_ruscorpra_frqs():
             pickle.dump(pf, open('C:\\_Work\\SemanticCore\\CF.pickled', mode='wb'))
         except pickle.PicklingError as ex:
             print(ex)
-    print(cf)
     return cf
 
 CF = load_ruscorpra_frqs()
 
+
 def collocations(sents):
-    #word_lists = PlaintextCorpusReader(corpus_dir, fileids='.+[.]txt')
     text = nltk.text.Text([token for sentence in sents for token in nltk.word_tokenize(sentence) if token not in punctuation])
     return text.find_collocations(num=30)
 
@@ -165,7 +151,7 @@ def words_freq(sents, normalize):
             tok = re.sub(r'[^\w\s]+|[\d]+', r'', tok).strip()
             tok = tok.lower()
             par = morph.parse(tok)[0]
-            if colorable(par):
+            if par.normal_form not in stop_words:
                 if par.normal_form not in toks:
                     docdist.append(par.normal_form)
                     toks.add(par.normal_form)
@@ -173,89 +159,17 @@ def words_freq(sents, normalize):
                     words.append(par.normal_form)
                 else:
                     words.append(tok)
+
     text1 = Counter(words)
     text2 = Counter(docdist)
 
-    return nltk.FreqDist(text1), nltk.FreqDist(text2)
+    return nltk.FreqDist(text1), nltk.FreqDist(text2), morph
 
 
-def color_text(fdist, text, normalize):
-    text = text.replace('•', ' ').replace('\n', ' ')
-    mc = fdist.most_common()[0]
-    max_freq = mc[1]
-    morph = pymorphy2.MorphAnalyzer()
-    text1 = ''
-    for word in text.split(' '):
-        if '-' in word:
-            for w in word.split('-')[:-1]:
-                text1 += color_word(w, fdist, morph, normalize, max_freq, sep='-')
-            text1 += color_word(word.split('-')[-1], fdist, morph, normalize, max_freq)
-            print(color_word(word.split('-')[-1], fdist, morph, normalize, max_freq))
-        else:
-            text1 += color_word(word, fdist, morph, normalize, max_freq)
-    return text1
 
-def colorable(par):
-
-    return par.tag.is_productive() and par.normal_form not in stop_words and par.tag.POS != 'ADVB'
-
-
-def color_word(word, fdist, morph, normalize, max_freq, sep=' '):
-    tok = re.sub(r'[^\w\s]+|[\d]+|•', r' ', word).strip().lower()
-    par = morph.parse(tok)[0]
-    if normalize:
-        tok = par.normal_form
-    if len(tok) == 0:
-        return ''
-    elif tok not in fdist.keys():
-        if not colorable(par):
-            return '<font color = "#010101" title = "{} {}">{}</font>{}'.format(tok, par.tag.POS, word, sep)
-        else:
-            return '<font color = "#ff0000" title = "0 {} {}">{}</font>{}'.format(tok, par.tag.POS, word, sep)
-            # print(word, '  ,  ', tok)
-    else:
-        cf = CF[tok] if CF[tok] != 0 else 2
-        green = round(100+155*fdist.get(tok)/ max_freq)
-        return '<font color = "#{0:02x}{1:02x}{2}" title = "{5:003.4f} {6} {7}">{3}</font>{4}'.format(255-green, green, '00',
-                                                                                       word,
-                                                                                       sep,
-                                                                                       fdist.get(tok),
-                                                                                       tok,
-                                                                                       par.tag.POS)
 
 if __name__ == '__main__':
-    import search_query.serps as wrs
-    semcorefile = 'C:\\_Work\\vostok\\to_clust_prav.txt'
-    region = 213
-    #num_res = 10
-
-    #queries = [ya_query.YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
-    qs = ['спецодежда для строителей']
-    queries = [ya_query.YaQuery(q, region) for q in qs]
-    for i, q in enumerate(queries):
-        print(q.query, q.count_commercial(10), q.count_informational(10))
-    '''comp = []
-    for i, q in enumerate(queries):
-        try:
-            comp.append(q.competitiveness(10))
-        except:
-            pass
-        print(i, '{', q.query, ':', comp[-1], '}')
-    print('done')
-
-    pickle.dump(comp, open("comp", mode='wb'))'''
-    '''
-
-    comp = pickle.load(open("comp", mode='rb'))
-
-
-    import pylab as pl
-    pl.figure()
-    pl.plot([i for i in range(len(comp))], sorted(comp, reverse=True))
-    #pl.hist(comp, 50)
-    pl.show()
-'''
-
+    pass
 
     """corpus_root = 'C:\\_Work\\lightstar\\corp'
     # make_plain_text_files('c:/_Work/lightstar/to_markers_ws.txt',corpus_root)

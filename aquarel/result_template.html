@@ -1,0 +1,21 @@
+﻿<!DOCTYPE html>
+<html>
+<head lang="en-ru">
+    <meta charset="UTF-8">
+    <title>Result</title>
+</head>
+<body>
+        <div>
+            {% for item in color_text %}
+                <font color = "{{item[1]}}" title = "{{item[2]}}">{{item[0]}}</font>{{item[3]}}
+            {% end %}
+        </div>
+        <h2>        Наиболее популярные слова:  </h2>
+        <p>{{freq_words}}        </p>
+        <h2>            Наиболее популярные коллокации:        </h2>
+        <p> {{freq_collocations}} </p>
+        <h2>            Наиболее тематичные слова:        </h2>
+        <p> {{weird_words}} </p>
+</body>
+
+</html>

@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 def get_hostname(url):
     return urlparse(url).hostname
 
+
 # <script async src="http://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"> </script>
 # <div id="yandex_ad"></div>
 class SerpItem:
@@ -26,8 +27,26 @@ class SerpItem:
                                     r'каталог|'
                                     r'клиент'
                                     r')(?:$|[\s]|[.])')
-    PATTERN_INF_WORDS = re.compile(r'(?:^|[\s]|[.])(?:wiki.*|youtube|обзор|вики.*|новост(?:ь|и|ью|ей)|'
-                                   r'что такое|где|Фото|видео|как|блог|в картинках|своими руками|схема|ремонт)(?:$|[\s]|[.])')
+    PATTERN_INF_WORDS = re.compile(r'(?:^|[\s]|[.])(?:'
+                                   r'wiki.*|'
+                                   r'youtube|'
+                                   r'обзор|'
+                                   r'вики.*|'
+                                   r'новост(?:ь|и|ью|ей)|'
+                                   r'что такое|'
+                                   r'где|'
+                                   r'Фото|'
+                                   r'видео|'
+                                   r'как|'
+                                   r'блог|'
+                                   r'в картинках|'
+                                   r'своими руками|'
+                                   r'схема|'
+                                   r'ремонт|'
+                                   r'какой|'
+                                   r'зачем|'
+                                   r'почему'
+                                   r')(?:$|[\s]|[.])')
 
     def __init__(self, url_id, url, title, snippet):
         self.url_id = url_id
@@ -40,7 +59,6 @@ class SerpItem:
 
 
     def _check_comm_inf_words(self, string):
-
         """
 
         :param string: str
@@ -104,10 +122,12 @@ class SerpItem:
 
     def count_commercial_wp(self):
         from search_query.content import WebPage
+
         wp = WebPage(self.url)
         return wp.count_commercial()
 
     def count_informational_wp(self):
         from search_query.content import WebPage
+
         wp = WebPage(self.url)
         return wp.count_informational()

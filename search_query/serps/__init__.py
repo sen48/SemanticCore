@@ -268,10 +268,11 @@ def unquote(url):
     return new_url
 
 if __name__ == '__main__':
-    queries = [
-               'спецодежда для строителей',
 
-                ]
+    queries = []
+    """[
+               'каски защитные купить',
+                ]"""
     for q in queries:
         print(q)
         write_serp_db(q, 213, 10)
