@@ -4,6 +4,7 @@ import text_analisys
 import search_query.serps as wrs
 from search_query.content import WebPage
 
+
 def _get_par(word, morph):
     tok = re.sub(r'[^\w\s]+|[\d]+|•', r' ', word).strip().lower()
     return morph.parse(tok)[0]
@@ -15,6 +16,7 @@ class SpecialWord:
     color: цвет - это строка начинающаяся с # а дальше 16-тиричный код цвета
     title:
     """
+
     def __init__(self, word, morph, fdist, max_freq, sep=' '):
         par = _get_par(word, morph)
         color, title = color_word(par, fdist, max_freq)
@@ -24,16 +26,15 @@ class SpecialWord:
         self.sep = sep
 
 
-def colorize_text(fdist, text, morph):
+def colorize_text(fdist, text):
     """
-
     :param fdist:
     :param text:
-    :param morph:
     :return:  текст с html разметкой
 
     """
 
+    morph = pymorphy2.MorphAnalyzer()
     text = text.replace('•', ' ').replace('\n', ' ')
     mc = fdist.most_common()[0]
     max_freq = mc[1]
@@ -42,8 +43,8 @@ def colorize_text(fdist, text, morph):
     for word in text.split(' '):
         if '-' in word:
             for w in word.split('-')[:-1]:
-                res.append(SpecialWord(w,  morph, fdist, max_freq, '-'))
-            res.append(SpecialWord(word.split('-')[-1],  morph, fdist, max_freq))
+                res.append(SpecialWord(w, morph, fdist, max_freq, '-'))
+            res.append(SpecialWord(word.split('-')[-1], morph, fdist, max_freq))
         else:
             res.append(SpecialWord(word, morph, fdist, max_freq))
     return make_html(res)
@@ -115,25 +116,24 @@ def colorize(queries, analyzed_text='', region=213):
     for query in queries:
         collection += get_texts(query, region)
 
-    fdist, doc_dist, morph = text_analisys.words_freq(collection, normalize=True)
+    freq_dist, doc_dist = text_analisys.words_freq(collection, normalize=True)
 
-    color_text = colorize_text(doc_dist, analyzed_text, morph)
-    most_comm = [str(word[0]) for word in fdist.most_common(20) if str(word[0]) != '']
+    color_text = colorize_text(doc_dist, analyzed_text)
+    most_comm = [str(word[0]) for word in freq_dist.most_common(20) if str(word[0]) != '']
 
     coll = ', '.join(text_analisys.collocations(collection))
     weirdness = {}
-    for k in fdist.keys():
-        if k == '':
+    for w in freq_dist.keys():
+        if w == '':
             continue
-        lang_freq = text_analisys.CF[k] if k in text_analisys.CF.keys() else 2
-        weirdness[k] = fdist.get(k) / lang_freq
+        lang_freq = text_analisys.CF[w] if w in text_analisys.CF.keys() else 2
+        weirdness[w] = freq_dist.get(w) / lang_freq
     weird = sorted(weirdness.keys(), key=lambda k: weirdness[k], reverse=True)[:50]
 
     return color_text, most_comm, coll, weird
 
 
 def get_texts(query, region):
-
     """
     Извлекает тексты ТОП10 по заданному запросу
     :param query: запрос
@@ -153,24 +153,40 @@ def get_texts(query, region):
 
     return [text_analisys.Readable(p.html()).title() + text_analisys.Readable(p.html()).text() for p in pgs]
 
+
 if __name__ == "__main__":
-    TEXT = '''В интернет-магазине «Троицкая книга» Вы можете в считанные минуты купить облачения и одежду. Церковные ткани,
+    TEXT = '''В интернет-магазине «Троицкая книга» Вы можете в считанные минуты купить облачения и одежду.
+     Церковные ткани,
     используемые для пошива изделий, представлены в соответствующем разделе.
     Наш интернет-магазин располагает широким выбором готовых богослужебных облачений (иерейские и диаконские облачения,
-     митры, камилавки, требные комплекты, стихари), а также повседневной священнической и монашеской одежды (рясы, подрясники).
+     митры, камилавки, требные комплекты, стихари), а также повседневной священнической и монашеской одежды
+     (рясы, подрясники).
      Кроме того, у нас Вы найдете безрукавки, брюки и рубашки.
-    Если нужного Вам размера не оказалось в наличии или у вас возникли трудности с подбором необходимых тканей и размера,
-    сразу же звоните нам – мы с радостью Вас проконсультируем и поможем подобрать нужный товар. А если Вы живете в Москве,
-    то лучше приходите в наш магазин. Лично ознакомьтесь с ассортиментом, примерьте понравившиеся изделия и сделайте конечный выбор.
-    Мы также предлагаем возможность заказать индивидуальный пошив изделия для православных священников. Облачения и одежда
-    шьются в нашей мастерской Подворья в Москве в течение 3-х недель, доставляются даже в самые удаленные уголки России и мира.
+    Если нужного Вам размера не оказалось в наличии или у вас возникли трудности с подбором необходимых
+    тканей и размера,
+    сразу же звоните нам – мы с радостью Вас проконсультируем и поможем подобрать нужный товар.
+    А если Вы живете в Москве,
+    то лучше приходите в наш магазин. Лично ознакомьтесь с ассортиментом, примерьте понравившиеся изделия и сделайте
+     конечный выбор.
+    Мы также предлагаем возможность заказать индивидуальный пошив изделия для православных священников.
+    Облачения и одежда
+    шьются в нашей мастерской Подворья в Москве в течение 3-х недель, доставляются даже в самые удаленные уголки
+    России и мира.
     Облачения и одежда православного священника
 
-    Мы производим священнические облачения и одежду для священнослужителей и монахов в собственной мастерской уже 15 лет.
-    В нашем ассортименте представлены ткани на любой вкус и кошелек. Вы можете выбрать православные облачения как из традиционных тканей
-    (шелк, парча русская, парча греческая), так и из более редких. Для пошива изделий мы используем хорошие лекала, поэтому,
+    Мы производим священнические облачения и одежду для священнослужителей и монахов в
+    собственной мастерской уже 15 лет.
+    В нашем ассортименте представлены ткани на любой вкус и кошелек. Вы можете выбрать православные
+     облачения как из традиционных тканей
+    (шелк, парча русская, парча греческая), так и из более редких.
+     Для пошива изделий мы используем хорошие лекала, поэтому,
     если Вы правильно указали свои параметры, можете быть уверены, что купленная вещь отлично сядет на Вас.'''
 
     QUERIES = ["адронный коллайдер", "бозон Хиггса"]
 
-    print(colorize(QUERIES, analyzed_text=TEXT, region=213)[0])
+    text, comm, col, wierd = colorize(QUERIES, analyzed_text=TEXT, region=213)
+    print(text)
+    print(comm)
+    print(col)
+    print(wierd)
+

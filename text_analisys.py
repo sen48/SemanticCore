@@ -15,6 +15,7 @@ import bs4
 
 stop_words = stopwords.words('russian')
 
+
 class Readable(read.Document):
     """
     Соотвестсвует основному содержимому web-страницы. Т.е. без воковых меню, шапок и подвалов.
@@ -163,9 +164,7 @@ def words_freq(sents, normalize):
     text1 = Counter(words)
     text2 = Counter(docdist)
 
-    return nltk.FreqDist(text1), nltk.FreqDist(text2), morph
-
-
+    return nltk.FreqDist(text1), nltk.FreqDist(text2)
 
 
 if __name__ == '__main__':
