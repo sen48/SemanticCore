@@ -82,7 +82,6 @@ def shotest_open_path(dist, level=0.9):
     for v in isolated:
         clusters.append([v])
 
-    print(clusters)
     return clusters
 
 

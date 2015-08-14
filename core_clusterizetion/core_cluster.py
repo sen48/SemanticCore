@@ -17,6 +17,14 @@ def _get_space_basis(serps):
 
 
 def cluster_dist(first_cluster, second_cluster, dist):
+
+    """
+    Расстояние между кластерами
+    :param first_cluster: список номеров объектов первого кластера
+    :param second_cluster: список номеров объектов второго кластера
+    :param dist: матрица рвсстояний между объеклами
+    :return:
+    """
     dist = norm_pdist(dist)
     return min(dist[c1][c2] for c1 in first_cluster for c2 in second_cluster)
 
@@ -95,6 +103,7 @@ def renumerate(fcl):
     # возвращается новый fcl, где старые номера заменяются на новые
     return [order[k] for k in fcl]
 
+
 def print_clusters(fcls, queries, site,report_file):
 
         """
@@ -111,10 +120,10 @@ def print_clusters(fcls, queries, site,report_file):
         ps = [0 for query in queries]  # [wrs.read_url_position(site, query.query,  query.region) for query in queries]
         pos = [p for p in ps]  # [p[0] for p in ps]
         pgs = [p for p in ps]  # [p[1].url for p in ps]
-        array = [[],[],[],[],[],[],[],[],[]]
+        array = [[] for i in range(len(fcls)+3)]
         array[0] = [query.query for query in queries]
-        array[1:7] = fcls
-        array[7:9] = [pos, pgs]
+        array[1: 1+len(fcls)] = fcls
+        array[1+len(fcls): 3+len(fcls)] = [pos, pgs]
         data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
