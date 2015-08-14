@@ -128,8 +128,6 @@ def print_clusters(fcls, queries, site,report_file):
         wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
 
 
-
-
 if __name__ == "__main__":
     import pandas
     from search_query.ya_query import YaQuery
@@ -141,8 +139,9 @@ if __name__ == "__main__":
 
         import mvpa2.suite
         import kohonen.kohonen
+        from search_query.ya_query import queries_from_file
         num_res = 10
-        queries = [YaQuery(q, region) for q in wrs.queries_from_file(semcorefile)]
+        queries = queries_from_file(semcorefile, region)
         data = get_queries_vectors(queries, num_res, True)
 
         data_names = [q.query for q in queries]
