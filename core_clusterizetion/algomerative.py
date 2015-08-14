@@ -1,6 +1,40 @@
-__author__ = 'lvova'
-class ClusterException(Exception):
+import scipy.cluster.hierarchy as sch
+from scipy.spatial.distance import pdist
+import core_clusterizetion.core_cluster as core_cluster
+
+
+class AlgomerativeClusterizationException(Exception):
     pass
+
+
+def fcluster(z, level):
+    """
+
+    Forms flat clusters from the hierarchical clustering defined by
+    the linkage matrix ``Z``.
+
+    Parameters
+    ----------
+    Z : ndarray
+        Иерархическая кластеризация представленная в виде linkage matrix, полученная в результате применения функции
+        `queries_linkage`.
+    level : float
+        Доля от максимального расстояния между кластерами. maxdist * level - пороговое значение расстояния, то есть
+        если расстояние между кластерами больше этого значения, то дальше кластеры не объединяются.
+    Returns
+    -------
+    fcluster : ndarray
+        Массив длины равной количеству кластеризуемых запросов. i - й элемент этого списка равен номеру класстера,
+        к которому отнесен i - й запрос. Класстеры пронумерованы в порядке убывания количества запросов.
+    """
+    return core_cluster.renumerate(sch.fcluster(z, level * max(z[:, 2]), criterion='distance'))
+
+
+def _get_linkage(x, method, metric):
+    if method == 'ward':
+        return sch.linkage(x, method=method, metric=metric)
+    y = pdist(x, metric)
+    return sch.linkage(y, method=method, metric=metric)
 
 
 def queries_linkage(ya_queries, num_res, method, metrics):
@@ -50,22 +84,45 @@ def queries_linkage(ya_queries, num_res, method, metrics):
         Иерархическая кластеризация представленная в виде linkage matrix.
     """
 
-    # Собираем id URLов ТОП{num_res} для всех запросов из списка ya_queries. Другими словами, кадному запросу ставим в
-    # соответствие вектор длиной num_res, состоящий из натуральных чисел равных id URLов.
-    vectors = [query.get_url_ids(num_res) for query in ya_queries]
-
-    # Так как методы 'ward', 'centroid', 'median' можно использовать только с евклидовым расстоянием, нам нужно
-    # изменить структуру векторов запросов, чтобы евклидово расстояние имело смысл. Для этого пронумеруем
-    # всевозможные урлы, встречающиеся в выдачах по заданным запросам.
-    # Если i-й запрос есть в выдаче по запросу q, то в векторе, соответствующем запросу q на i-м месте стоит 1,
-    # иначе  - 0.
-    # Евклидово расстояние между двумя такими векторами совпадает с числом 2*(num_res - k),
-    # где k - число URLов, присутствующих в обеих выдачах.
-
     if method in ('ward', 'centroid', 'median'):
         if metrics != 'euclidian':
-            raise ClusterException('Метод {} можно использовать только с евклидовым расстоянием'.format(method))
-        all_url_ids = _get_space_basis(vectors)  # - список всех различных id, встресающихся в serps
-        vectors = [[[(url_id in serp)for url_id in all_url_ids]] for serp in vectors]
+            raise AlgomerativeClusterizationException('Метод {} можно использовать '
+                                                      'только с евклидовым расстоянием'.format(method))
 
+    vectors = core_cluster.get_queries_vectors(ya_queries, num_res, method in ('ward', 'centroid', 'median'))
     return _get_linkage(vectors, method, metrics)
+
+if __name__ == "__main__":
+    from search_query.ya_query import queries_from_file
+    import core_clusterizetion.visual as visual
+
+    def main(semcorefile, fout_name, site, region):
+        num_res = 10
+        queries = queries_from_file(semcorefile, region)
+
+        metrics = lambda u, v: 1 - sum([int(i in v) for i in u]) / num_res
+
+        serps = [query.get_serp(num_res) for query in queries]
+
+        ids = [[item.url_id for item in s] for i, s in enumerate(serps)]
+        dist = pdist([i for i in ids], metrics)
+
+        z = sch.linkage(dist, method='average', metric=metrics)
+        print('linkage OK')
+
+        fcl0 = fcluster(z, 0.95)
+        fcl1 = fcluster(z, 0.9)
+        fcl2 = fcluster(z, 0.8)
+        fcl3 = fcluster(z, 0.7)
+        fcl4 = fcluster(z, 0.6)
+        fcl5 = fcluster(z, 0.5)
+        print('Algomerative ok')
+
+        fcl = [fcl0, fcl1, fcl2, fcl3, fcl4, fcl5]
+
+        core_cluster.print_clusters(fcl, queries, site, fout_name)
+        print('Print Ok')
+        visual.plot_dendrogram(z, fcl=fcl[0], fig=1, labels=[q.query for q in queries])
+
+    main('C:\\_Work\\vostok\\to_clust_prav.txt', 'c:\\_Work\\vostok\\result_clust_4.csv', 'lightstar.ru', 213)
+

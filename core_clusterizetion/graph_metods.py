@@ -1,8 +1,7 @@
 import functools
 from scipy.spatial.distance import pdist, squareform, num_obs_y
 import numpy as np
-import networkx as nx
-import matplotlib.pyplot as pl
+
 
 def condensed_to_square_index(n, c):
     # converts an index in a condensed array to the

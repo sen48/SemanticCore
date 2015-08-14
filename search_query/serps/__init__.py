@@ -24,8 +24,8 @@ data_base_config = {
     'raise_on_warnings': True,
 }
 
-
-def _norm_string(string):
+"""
+def __norm_string(string):
     sep = ';,\t'
     for s in sep:
         if s in string:
@@ -38,21 +38,7 @@ def _norm_string(string):
         string = string[1:]
     while len(string) > 0 and (string[-1] == '\n' or string[-1] == '\r'):
         string = string[:-1]
-    return string
-
-
-def queries_from_file(kernel_file):
-    try:
-        with open(kernel_file, mode='r', encoding='utf-8') as kf:
-            queries = []
-            for line in kf:
-                query = _norm_string(line)
-                if query in queries or len(query) == 0:
-                    continue
-                queries.append(query)
-        return queries
-    except IOError as er:  # Обработка отсутствия файла
-        print(u'Can\'t open the "{0}" file'.format(er.filename))
+    return string"""
 
 
 def write_report(data_frame, report_file='result.csv'):
@@ -127,7 +113,7 @@ def read_serp(query, region, num_res):
     :return: tuple, упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
         соответствующий ТОП{top} поисковой выдачи
     """
-    #print(query)
+
     get_serp = '''SELECT
                         urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet
                   FROM
@@ -168,16 +154,6 @@ def read_serp(query, region, num_res):
     if any([not isinstance(v, SerpItem) for v in res]):
         raise ReadSerpException("Can't read serp")
     return tuple(res)
-
-
-def put_queries_bd(kernel_file, region, num_res):
-    queries = queries_from_file(kernel_file)
-    counter = 0
-    for query in queries:
-        counter += 1
-        print(query)
-        print(counter)
-        read_serp(query, region, num_res)
 
 
 def _cut_pref(url):

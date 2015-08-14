@@ -1,54 +1,51 @@
-import math
-import collections
+"""
+Тут нет ничего полезного
+"""
+
 import statistics
+import igraph as ig
+import numpy as np
+from scipy.spatial.distance import pdist, squareform
 from search_query.ya_query import queries_from_file
 from search_query.serp_metrics import number_of_common_urls
 
-import core_clusterizetion.visual
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.font_manager
-from scipy import stats
-from scipy.spatial.distance import pdist, squareform
 
-from sklearn import svm
-from sklearn.covariance import EllipticEnvelope
-from sklearn.decomposition import PCA
-
-import networkx as nx
-import igraph as ig
-
-minuswords = ['где', 'как', 'фото', 'своими руками', 'видео', 'скачать', 'бесплатно', 'икея', 'леруа', 'мерлен',
+MINUSWORDS = ['где', 'как', 'фото', 'своими руками', 'видео', 'скачать', 'бесплатно', 'икея', 'леруа', 'мерлен',
               'официальный сайт', 'мастер класс', 'подключить', 'подручных', 'сломалась', 'ремонт', 'к чему', 'что',
-              'какую', 'ютуб', 'youtube', 'форум']
+              'какую', 'ютуб', 'youtube', 'форум', 'сравнить', 'отличия']
 cities = []
 
 
-def get_queries(file, region):
-    p = [query for query in queries_from_file(file, region) if all(word not in query.query for word in minuswords)]
+def remove_queries_with_minus_words(queries, minus_words=None):
+    if minus_words:
+        minuswords = MINUSWORDS + minus_words
+    else:
+        minuswords = MINUSWORDS
+
+    p = [query for query in queries if all(word not in query.query for word in minuswords)]
     return p
 
 
-def get_vecs(url_or_dom, fname, num_res=10, ):
+def get_vecs(url_or_dom, fname, num_results=10, ):
     if url_or_dom not in ['url', 'hostname']:
         raise Exception('ddd')
 
-    vectors = np.zeros((num_points, num_res))
+    vectors = np.zeros((num_points, num_results))
     all_domains = []
     for i, query in enumerate(queries):
         print('{} {}'.format(i, query.query))
         query.get_serp(10)
         if url_or_dom == 'url':
-            vec = query.get_url_ids(num_res)
+            vec = query.get_url_ids(num_results)
         else:
             vec = []
-            domains = query.get_domains(num_res)
-            for d in domains:
-                if d in all_domains:
-                    vec.append(all_domains.index(d))
+            domains = query.get_domains(num_results)
+            for domain in domains:
+                if domain in all_domains:
+                    vec.append(all_domains.index(domain))
                 else:
                     vec.append(len(all_domains))
-                    all_domains.append(d)
+                    all_domains.append(domain)
         vectors[i, :] = vec
     np.savetxt(fname, vectors.T)
     print(vectors.shape)
@@ -63,25 +60,21 @@ def get_graph(X, fname=None):
     metric = lambda u, v: number_of_common_urls(u, v) / num_res
 
     d = squareform(pdist(X, metric=metric))
-    print(d.shape)
     M, N = d.shape
 
     G = ig.Graph(M)
     for i in range(M):
-        print(i)
         for j in range(i+1, N):
             if d[i, j] > 0:
                 G.add_edge(i, j, weight=d[i, j])
     if fname:
         f = "gml"
-        print('saving')
         G.save(fname, format=f)
     return G
 
 
 def load_graph(fname):
     f = "gml"
-    print('reading')
     return ig.load(fname, format=f)
 
 
@@ -93,23 +86,23 @@ def remove_queries(G, threshold=0.4):
     for j, (ind, r) in enumerate(sor[1:]):
         dist.append(abs(G.degree(ind)-G.degree(sor[j][0])))
 
-
     delta = max(dist)-threshold*(max(dist)-min(dist))
-    res = []
+    result = []
     for j, (i, r) in enumerate(sor[1:-1]):
         if dist[j] > delta and dist[j+1] > delta:
-            res.append((i, statistics.mean([dist[j], dist[j+1]])))
+            result.append((i, statistics.mean([dist[j], dist[j+1]])))
             try:
                 G.delete_vertices(i)
             except:
                 print(i)
                 raise
-    return res
+    return result
 
 
 if __name__ == '__main__':
 
-    queries = get_queries('c:/_Work/vostok/to_clust.csv', 213)
+    queries = remove_queries_with_minus_words(queries_from_file('c:/_Work/vostok/to_clust.csv', 213))
+
     num_points = len(queries)
 
     num_res = 10
@@ -122,34 +115,31 @@ if __name__ == '__main__':
     G = load_graph("graph1_vostok_host.txt")
     print('===============================')
     res = remove_queries(G, 0.5)
-    for (i, d) in sorted(res, key=lambda v: -v[1]):
-        print(queries[i].query, d)
+    for (i_r, d) in sorted(res, key=lambda v: -v[1]):
+        print(queries[i_r].query, d)
     print('===============================')
 
     comp = sorted(G.clusters(mode='STRONG'), key=len, reverse=True)
     S = G
     for c in comp[1:]:
-        print([queries[i].query for i in c])
+        print([queries[i_c].query for i_c in c])
         S.delete_vertices(c)
 
-    for j, i in enumerate(S.vs.indices):
-        if i != j:
-            print('fsdf!!!', i, j)
+    for j_i, i_i in enumerate(S.vs.indices):
+        if i_i != j_i:
+            print('fsdf!!!', i_i, j_i)
 
     print(len(S.vs.indices))
 
     print('===============================')
     res = remove_queries(S, 0.5)
-    for (i, d) in sorted(res, key=lambda v: -v[1]):
-        print(queries[i].query, d)
+    for (i_r, d) in sorted(res, key=lambda v: -v[1]):
+        print(queries[i_r].query, d)
 
     print('===============================')
 
 
     #comp = G.clusters(mode='STRONG')
-
-
-
 
     '''print()
 
