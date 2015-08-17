@@ -70,7 +70,10 @@ class WebPage:
         self._g.go(quote(url))
         self.doc = self._g.doc
 
-    def RetTic(self):
+    def getTic(self):
+        """
+        Возвращает тИЦ страницы. Использовать с осторожностью, могут забанить ip
+        """
         import urllib
         yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
 
@@ -85,8 +88,10 @@ class WebPage:
             tic = 0
         return tic
 
-    def RetYaca(self):
-        'наличие сайта в яндекс каталоге на Python'
+    def is_in_Yaca(self):
+        """
+        Проверка наличия сайта в яндекс каталоге. Использовать с осторожностью, могут забанить ip
+        """
         import urllib
         yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
 
@@ -107,6 +112,9 @@ class WebPage:
             return False
 
     def get_phones(self):
+        """
+        Возвращает список номеров телефонов, встречающихся на странице.
+        """
         phone_pattern = re.compile(r'(?:^|[>"\s])(?:т[.]\D*|тел[.]\D*|телефон\D*)'
                                    r'(?:'
                                    r'(?:\d{2,3})[-– ]?(?:\d{2})[-– ]?(?:\d{2})|'
@@ -123,6 +131,10 @@ class WebPage:
         return [tel for tel in numbers if _acceptable_phone(tel)]
 
     def count_addresses(self):
+        """
+        Проверяет наличие адреса на странице. 
+        Сначала ищет подходящую микроразметку. Если не нашел, ищет по регулярному выражению
+        """
         num = len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="adr"]')) + \
               len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="address"]')) + \
               len(self.doc.select('//*[@class="vcard"]/*[@class="adr"]')) + \
@@ -148,6 +160,9 @@ class WebPage:
         return len(p0.findall(html_body) + p1.findall(html_body) + p2.findall(html_body) + p3.findall(html_body))
 
     def is_search_on_page(self):
+        """
+        Проверяет наличие поиска по сайту. 
+        """
         p = re.compile(r'''(?:^|>|=['"])[\s]*поиск(?: по сайту)?|найти[\s]*(?:$|[<'"])''',
                        flags=re.IGNORECASE)
         if len(p.findall(self.doc.unicode_body())) > 0:
@@ -157,19 +172,31 @@ class WebPage:
                     for t in self.doc.select('//*')])
 
     def is_face(self):
+        """
+        Если страница является "мордой" возвращает True, иначе False. 
+        """
         p = re.compile(r'http://(?:[-_a-zA-Z.]+[.])+[a-z]{2,5}[/]?[\s]*$')
         return bool(p.match(self.url))
 
     def html(self):
+        """
+        Возвращяет html код страницы
+        """
         return self.doc.unicode_body()
 
     def title(self):
+        """
+        Возвращяет заголовок страницы, если заголовка нет возвращяет строку 'no-title'
+        """
         try:
             return self.doc.select('//title')[0].text()
         except (grab.error.DataNotFound, IndexError):
             return 'no-title'
 
     def description(self):
+        """
+        Возвращяет содержимое мета-тега "description", если его нет, возвращяет строку 'no-description'
+        """
         try:
             p = self.doc.select('//meta[@name="description"]').node().get('content')
             return p
@@ -180,9 +207,15 @@ class WebPage:
     #    return read.Document(self.html())
 
     def readable(self):
+        """
+        Возвращяет текстовое содержимое страницы (без сквозного содержимого, содержательну часть) с html разметкой
+        """
         return read.Document(self.html()).summary()
 
     def text(self):
+        """
+        Возвращяет текстовое содержимое страницы (без сквозного содержимого, содержательнуб часть) без html
+        """
         html_doc = read.Document(self.html()).summary()
         soup = bs4.BeautifulSoup(html_doc)
         text = soup.get_text()
@@ -195,15 +228,24 @@ class WebPage:
         return text
 
     def text_len(self):
+        """
+        Длина содержательного текста
+        """
         return len(self.text())
 
     def is_online_consultant_on_page(self):
+        """
+        Проверяет наличие онлайн консультанта 
+        """
         p = re.compile(r'livetex.ru/js/client.js|web.redhelper.ru/service/main.js|static.cloudim.ru/js/chat.js|'
                        r'consultsystems.ru/script/|//code.jivosite.com/script/widget/|'
                        r'//widget.siteheart.com/apps/js/sh.js')
         return len(p.findall(self.html())) > 0
 
     def is_video_on_page(self):
+        """
+        Проверяет наличие видео контента
+        """
         divs = self.doc.select('//div[@itemtype="http://schema.org/VideoObject"]')
         if len(divs) > 0:
             return True
@@ -214,11 +256,17 @@ class WebPage:
                     for v in video_sources])
 
     def is_file_on_page(self, ext='pdf'):
+        """
+        Проверяет наличие ссылки на фаил с расширением ext
+        """
         p = re.compile(r'[.]{}$'.format(ext),
                        flags=re.IGNORECASE)
         return any([len(p.findall(r.text())) > 0 for r in self.doc.select('//a/@href')])
 
     def is_payment_on_page(self):
+        """
+        Проверяет наличие ссылки способы оплаты|доставки
+        """
         p = re.compile(r'''[>=]["]?[\s](?:(?:варианты|способы|условия)[\s]*(?:оплаты|доставки)[\s]*|'''
                        r'''доставка(?:[\s]*[и\\][\s]*оплата)|'''
                        r'''оплата(?:[\s]*[и\\][\s]доставка))[\s]*["<]''',
@@ -226,6 +274,9 @@ class WebPage:
         return len(p.findall(self.html())) > 0
 
     def is_pagination_on_page(self):
+        """
+        Проверяет наличие пагинатора
+        """
         p = re.compile(r'^.*?pag(?:inat|e|ing|or)[\s\S]*?$',
                        flags=re.IGNORECASE)
         cl = self.doc.select('//*[@class]')
