@@ -7,7 +7,7 @@ R = 0.0
 
 def score_bm25(cf, tf, dl, avdl, total_lemms):
     """
-
+    Вычисляет значение классического BM-25
     :param cf: Частота терма в коллекции
     :param tf: Term frequency in document
     :param N: Число документов в коллекции
