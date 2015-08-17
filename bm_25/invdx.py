@@ -5,7 +5,7 @@ from string import punctuation
 from nltk.corpus import stopwords
 import collections
 import pickle
-
+import re
 import pymorphy2
 
 punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
@@ -20,24 +20,11 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
                    'суть', 'очень', 'год', 'который', 'usd'])
 
 
-def _clear_term(term):
-    s = term[-1]
-    while not s.isalpha():
-        term = term[:-1]
-        if len(term) > 0:
-            s = term[-1]
-        else:
-            s = 'a'
-    if len(term) < 2:
-        return term
-    s = term[0]
-    while not s.isalpha():
-        term = term[1:]
-        if len(term) > 0:
-            s = term[0]
-        else:
-            s = 'a'
-    return term
+def _clear_word(word):
+    """
+    Чистит слово от небуквенных символов, приводит все буквы к нижнему регистру
+    """
+    return re.sub(r'[^\w\s]+|[\d]+|•', r' ', word).strip().lower()
 
 
 def _get_terms_from_tokens(tokens):
