@@ -56,7 +56,6 @@ def _get_par_from_tokens(tokens):
         term = pr.normal_form
         if term in punctuation or term.isnumeric() or len(term) <= 1 or term in stop_words:
             continue
-
         terms.append(pr)
     return terms
 
@@ -88,6 +87,9 @@ def _read_idfs(file):
 
 
 class Entry:
+    """
+    Вхождение термина в текст, характеризуется номером позиции и некоторыми свойствами (Какими?)
+    """
     def __init__(self, position, props=None):
         self.position = position
         self.props = props
