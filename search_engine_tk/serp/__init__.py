@@ -2,12 +2,11 @@
 Тут все нужно переделывать
 """
 
-
 import urllib
-from urllib.parse import urlparse
+
 import mysql.connector
-from mysql.connector import errorcode
-from search_engine_tk.serp.serp_yaxml import corresponding_page, YaException, get_serp
+
+from search_engine_tk.serp.serp_yaxml import corresponding_page, get_serp
 from search_engine_tk.serp_item import SerpItem
 
 
@@ -28,30 +27,64 @@ data_base_config = {
 }
 
 
+def read_serp(query, region, num_res):
+    """
+    Возвращает выдачу яндекса по запросу
+    По-хорошему нужно проверять на сколько давно запись в БД, и если после этого был апдейт, то перезаписывать.
+    :param query: str, запрос
+    :param region: int, номер региона
+    :param num_res: int, глубина ТОПа
+    :return: списокб упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
+        соответствующий ТОП{top} поисковой выдачи
+    """
 
-def _read_from_db(get_str, data=None):
-    res = []
-    try:
-        con = mysql.connector.connect(**data_base_config)
-        cur = con.cursor()
-        cur.execute(get_str, data)
-        res = list(cur)
-        cur.close()
-    except mysql.connector.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("Something is wrong with your user name or password")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("Database does not exist")
-        else:
-            print(err)
-    else:
-        con.close()
+    get_serp = '''SELECT
+                        urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet
+                  FROM
+                                (serp_items
+                            INNER JOIN
+                                queries
+                            ON
+                                serp_items.query_id = queries.query_id)
+                        INNER JOIN
+                            urls
+                        ON
+                            urls.url_id = serp_items.url_id
+                  WHERE key_words = %(query)s AND region = %(region)s'''
+
+    data_serp = {
+        'query': query,
+        'region': region,
+    }
+    rows = _read_from_db(get_serp, data_serp)
+    # Если в БД нет нужного зароса (пары (запрос, регион)) записываем его в базу и считываем.
+    # TODO: Наверно, в случае когда num_res больше числа результатов в базе можно не перезаписывать все,
+    # а дописать недостающие
+    if len(rows) < num_res:
+        _write_serp_db(query, region)
+        rows = _read_from_db(get_serp, data_serp)
+        if len(rows) < num_res:
+            raise ReadSerpException("Can't read serp")
+
+    # из rows делаем массив, нужного формата ( см ":return:")
+    res = [None for i in range(num_res)]
+    for row in rows:
+        if row[1] - 1 < num_res:
+            res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
+    if any([not isinstance(v, SerpItem) for v in res]):
+        _write_serp_db(query, region)
+        rows = _read_from_db(get_serp, data_serp)
+        for row in rows:
+            if row[1] - 1 < num_res:
+                res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
+    if any([not isinstance(v, SerpItem) for v in res]):
+        raise ReadSerpException("Can't read serp")
     return res
 
 
 def read_url_position(hostname, query, region):
     """
-    Возвращяет позицию релевантной страницы и соответствующий ей объект класса SerpItem
+    Возвращяет позицию релевантной страницы и соответствующий ей объект класса SerpItem.
     :param hostname: str, адрес сайта без http:// и www
     :param query: str, запрос
     :param region: int, номер региона
@@ -80,67 +113,13 @@ def read_url_position(hostname, query, region):
     }
     rows = _read_from_db(get_pos_url_id, data)
     if len(rows) == 0:
-        try:
-            result = corresponding_page(query, region, hostname)
+        result = corresponding_page(query, region, hostname)
+        if result:
             return 0, SerpItem(200, result.url, result.title, result.snippet)
-        except YaException:
+        else:
             return 0, SerpItem(200, '', '', '')
     else:
         return rows[0][2], SerpItem(rows[0][0], rows[0][1], rows[0][3], rows[0][4])
-
-
-def read_serp(query, region, num_res):
-    """
-    Возвращает выдачу яндекса по запросу
-
-
-    :param query: str, запрос
-    :param region: int, номер региона
-    :param num_res: int, глубина ТОПа
-    :return: списокб упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
-        соответствующий ТОП{top} поисковой выдачи
-    """
-
-    get_serp = '''SELECT
-                        urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet
-                  FROM
-                                (serp_items
-                            INNER JOIN
-                                queries
-                            ON
-                                serp_items.query_id = queries.query_id)
-                        INNER JOIN
-                            urls
-                        ON
-                            urls.url_id = serp_items.url_id
-                  WHERE key_words = %(query)s AND region = %(region)s'''
-
-    data_serp = {
-        'query': query,
-        'region': region,
-    }
-    rows = _read_from_db(get_serp, data_serp)
-    # Если в БД нет нужного зароса (пары (запрос, регион)) записываем его в базу и считываем
-    if len(rows) < num_res:
-        _write_serp_db(query, region)
-        rows = _read_from_db(get_serp, data_serp)
-        if len(rows) < num_res:
-            raise ReadSerpException("Can't read serp")
-
-    # из rows делаем массив, нужного формата ( см ":return:")
-    res = [None for i in range(num_res)]
-    for row in rows:
-        if row[1] - 1 < num_res:
-            res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
-    if any([not isinstance(v, SerpItem) for v in res]):
-        _write_serp_db(query, region)
-        rows = _read_from_db(get_serp, data_serp)
-        for row in rows:
-            if row[1] - 1 < num_res:
-                res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
-    if any([not isinstance(v, SerpItem) for v in res]):
-        raise ReadSerpException("Can't read serp")
-    return res
 
 
 def _cut_pref(url):
@@ -151,6 +130,26 @@ def _cut_pref(url):
     if url.startswith('www.'):
         url = url[4:]
     return url
+
+
+def _read_from_db(get_str, data=None):
+    res = []
+    try:
+        con = mysql.connector.connect(**data_base_config)
+        cur = con.cursor()
+        cur.execute(get_str, data)
+        res = list(cur)
+        cur.close()
+    except mysql.connector.Error as err:
+        if err.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == mysql.connector.errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+    else:
+        con.close()
+    return res
 
 
 def _write_db(list_of_sql_queries):
@@ -170,7 +169,7 @@ def _write_serp_db(query, region, num_res=100):
     for i, result in enumerate(s):
         url = unquote(result.url)
         q_list = []
-        hostname = _cut_pref(urlparse(url).hostname)
+        hostname = _cut_pref(urllib.parse.urlparse(url).hostname)
         add_query = 'INSERT IGNORE INTO queries(key_words, region) VALUES (%(query)s, %(region)s)'
         data_query = {
             'query': query,
@@ -211,14 +210,6 @@ def _write_serp_db(query, region, num_res=100):
         q_list.append((add_serp, data_serp))
         _write_db(q_list)
 
-"""
-def get_all_queries():
-    get_pos_url_id = '''SELECT
-                            key_words, region
-                        FROM
-                            queries'''
-    return _read_from_db(get_pos_url_id)
-"""
 
 def unquote(url):
     try:

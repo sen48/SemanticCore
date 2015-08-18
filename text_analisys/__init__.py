@@ -1,15 +1,15 @@
 import pickle
 import re
 import collections
+from string import punctuation
 import nltk
 import nltk.text
 import pymorphy2
-from read.htmls import norm_title
-import read
-from string import punctuation
 from nltk.corpus import stopwords
 from nltk.compat import Counter
 import bs4
+from read.htmls import norm_title
+import read
 
 
 stop_words = stopwords.words('russian')
@@ -106,7 +106,6 @@ CF = load_ruscorpra_frqs()
 
 
 def collocations(sents):
-
     """
     Ищет колокации в тексте
     :param sents: список строк

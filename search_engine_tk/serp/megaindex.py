@@ -1,12 +1,12 @@
-from pandas.io import json
-
-__author__ = 'lvova'
-import grab
 import urllib
+
+import grab
+
+from pandas.io import json
 from pyyaxml.search import SearchResultItem
 
 
-def megaindex_position(query, region=213, num_res=10):
+def get_serp(query, region=213, num_res=10):
     params = {'request': query,
               'user': 'timonof@gmail.com',
               'password': 'En90fB',
@@ -34,6 +34,12 @@ def megaindex_position(query, region=213, num_res=10):
 
 
 def megaindex_wordstat3(queries):
+    """
+    Возвращяет значения wordstat по точному соответствию
+    :param queries:
+    :return:
+    """
+
     res = []
     for query in queries:
         params = {'user': 'timonof@gmail.com',
@@ -45,7 +51,7 @@ def megaindex_wordstat3(queries):
         g.setup(url=url)
         try:
             g.request()
-        except grab.error.GrabTimeoutError as e:
+        except grab.error.GrabTimeoutError:
             continue
         jsonText = g.doc.unicode_body()
         data = json.loads(jsonText)

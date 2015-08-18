@@ -7,6 +7,9 @@ def get_hostname(url):
 
 
 class SerpItem:
+    """
+    Соответствует позиции в поисковой выдаче
+    """
     URL_COMM_WORDS = ['shop', 'catalog', 'cat/', 'katalog/', 'card', 'product', 'category', 'stock', ]
     URL_INF_WORDS = ['news', 'info', 'blog', 'forum', 'article', 'help', 'wiki', 'topic', 'story', 'post', 'news',
                      'otvet.mail.ru']
@@ -118,13 +121,11 @@ class SerpItem:
 
 
     def count_commercial_wp(self):
-        from search_engine_tk.content_old import WebPage
-
+        from content import WebPage
         wp = WebPage(self.url)
         return wp.count_commercial()
 
     def count_informational_wp(self):
-        from search_engine_tk.content_old import WebPage
-
+        from content import WebPage
         wp = WebPage(self.url)
         return wp.count_informational()
