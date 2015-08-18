@@ -1,12 +1,12 @@
-# invdx.py
 import math
-import nltk
 from string import punctuation
-from nltk.corpus import stopwords
 import collections
 import pickle
-
+import nltk
+from nltk.corpus import stopwords
 import pymorphy2
+import re
+
 
 punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
 stop_words = stopwords.words('russian')
@@ -18,30 +18,15 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
                    'вследствие', 'знать', 'прийти', 'вдоль', 'вокруг', 'мочь', 'предлагать',
                    'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
                    'суть', 'очень', 'год', 'который', 'usd'])
+morph = pymorphy2.MorphAnalyzer()
 
 
 def _clear_term(term):
-    s = term[-1]
-    while not s.isalpha():
-        term = term[:-1]
-        if len(term) > 0:
-            s = term[-1]
-        else:
-            s = 'a'
-    if len(term) < 2:
-        return term
-    s = term[0]
-    while not s.isalpha():
-        term = term[1:]
-        if len(term) > 0:
-            s = term[0]
-        else:
-            s = 'a'
+    term = re.sub(r'[^\w\s]+|[\d]+|•', r' ', term).strip().lower()
     return term
 
 
 def _get_terms_from_tokens(tokens):
-    morph = pymorphy2.MorphAnalyzer()
     pre_terms = [morph.parse(tok)[0].normal_form for tok in tokens]
     terms = []
     for term in pre_terms:
@@ -61,7 +46,7 @@ def _get_term_list(text):
 
 def _get_par_from_tokens(tokens):
     """Analyze tokens and return a list of token.tag"""
-    morph = pymorphy2.MorphAnalyzer()
+    # morph = pymorphy2.MorphAnalyzer()
     terms = []
     for tok in tokens:
         tok = _clear_term(tok)
@@ -69,7 +54,6 @@ def _get_par_from_tokens(tokens):
         term = pr.normal_form
         if term in punctuation or term.isnumeric() or len(term) <= 1 or term in stop_words:
             continue
-
         terms.append(pr)
     return terms
 
@@ -85,7 +69,7 @@ def _read_idfs(file):
     for line in open(file, mode='r', encoding='utf-8'):
         p = line.split(';')
         if len(p) != 2:
-            raise LookupError('%s is frog' % file)
+            raise Exception('%s has not supported data. ' % file)
         word = p[1][:-1]
         if word[0].isdigit():
             continue
@@ -94,13 +78,16 @@ def _read_idfs(file):
                 p[0] = p[0][1:]
             freq = int(p[0])
         except:
-            raise LookupError('%s is bad' % file)
+            raise Exception('%s has not supported data. ' % file)
         idf[word] = freq
-
     return nltk.ELEProbDist(nltk.FreqDist(idf))
 
 
 class Entry:
+    """
+    Вхождение слова в текст, характеризуется возицией и некоторыми свойствами, отвечающими за форму слова (термина).
+    Далее в качестве свойств используются объекты класса (pymorphy2.tagset.OpencorporaTag),
+    """
     def __init__(self, position, props=None):
         self.position = position
         self.props = props
@@ -110,6 +97,11 @@ class Entry:
 
 
 class PostingList:
+    """
+    Постинглист термина - это словарь, ключами которого являются id документов коллекции,
+    в которых этот термин встречается, а значениями являются словари вида {Зона документа: список вхождений (Entry)
+    данного термина в соответствующую зону соответствующего документа}. Зонами могут быть title, h1, body и т.д.
+    """
     def __init__(self):
         self.posting_list = collections.defaultdict(lambda: collections.defaultdict(list()))
 
@@ -142,6 +134,12 @@ class PostingList:
 
 
 class InvertedIndex:
+    """
+    Обратный индекс состоит из
+    - словаря, в котором ключами являются термины, а значениями соответствующие постинглисты.
+    - словаря с частотами терминов в русском языке
+    - таблицы длин документов коллекции
+    """
     p_type = 'idf'
 
     def __init__(self, idfs='C:\\_Work\\SemanticCore\\bm_25\\NKRL.csv'):
@@ -176,20 +174,37 @@ class InvertedIndex:
         with open('{}.pickle'.format(name), 'rb') as fin:
             return InvertedIndex(pickle.load(fin))
 
-    # frequency of word in document
     def get_document_frequency(self, word, docid):
-        morth = pymorphy2.MorphAnalyzer()
-        term = morth.parse(word)[0].normal_form
+        """
+        количество вхождений слова в документ
+        :param word: str
+        :param docid: int
+        :return: int
+        """
+
+        # morph = pymorphy2.MorphAnalyzer()
+        term = morph.parse(word)[0].normal_form
         if term in self.index:
             return self.index[word].tf(docid)
         else:
             return 0
 
-    # frequency of word in index, i.e. number of documents that contain word
     def get_index_frequency(self, word):
+        """
+        частота слова в индексе
+        """
         return self.IDF.freq(word)
 
     def score(self, doc_id, zone, query):
+        """
+        Считает значение показателя релевантности документа запросу по формулам из статьи
+        «Алгоритм текстового ранжирования Яндекса» с РОМИП-2006
+        http://download.yandex.ru/company/03_yandex.pdf
+        :param doc_id:
+        :param zone:
+        :param query:
+        :return:
+        """
         k0 = 0.3
         k1 = 0.1
         k2 = 0.2
@@ -209,6 +224,13 @@ class InvertedIndex:
         return res
 
     def w_all_words(self, doc_id, zone, terms):
+        """
+        Wallwords — вклад вхождения всех терминов (форма слова не важна) из запроса;
+        :param doc_id:
+        :param zone:
+        :param terms:
+        :return:
+        """
         n_miss = 0
         idfs = 0
         for term in terms:
@@ -223,6 +245,13 @@ class InvertedIndex:
         return idfs * 0.03 ** n_miss
 
     def w_phrase(self, doc_id, zone, terms):
+        """
+        Wphrase — вклад вхождения всего запроса (фразы), учитываются формы слов
+        :param doc_id:
+        :param zone:
+        :param terms:
+        :return:
+        """
         tf = self.doc_length(doc_id, zone)
         for term in terms:
             if term.normal_form not in self \
@@ -239,6 +268,13 @@ class InvertedIndex:
         return idfs * tf / (1 + tf)
 
     def w_half_phrase(self, doc_id, zone, terms):
+        """
+        Whalfphrase — вклад вхождения части запроса, учитываются формы слов
+        :param doc_id:
+        :param zone:
+        :param terms:
+        :return:
+        """
         tf = self.doc_length(doc_id, zone)
         counter = 0
         for term in terms:
@@ -269,6 +305,13 @@ class InvertedIndex:
         return res
 
     def w_single(self, doc_id, zone, terms):
+        """
+        W_single — вклад отдельных слов из запроса;
+        :param doc_id:
+        :param zone:
+        :param terms:
+        :return:
+        """
         terms = [t.normal_form for t in terms]
         res = 0
         k1 = 1
@@ -287,6 +330,13 @@ class InvertedIndex:
         return [e.position for e in self.index[term].entries(doc_id, zone)]
 
     def w_pair(self, doc_id, zone, terms):
+        """
+        Wpair — вклад пар слов;
+        :param doc_id:
+        :param zone:
+        :param terms:
+        :return:
+        """
         terms = [t.normal_form for t in terms]
         if len(terms) < 2:
             return 0
@@ -372,18 +422,31 @@ class DocumentLengthTable:
         if docid in self.table and zone in self.table[docid]:
             return self.table[docid][zone]
         else:
-            raise LookupError('%s not found in table' % str(docid))
+            return 0
 
-    def get_average_length(self):
+    def count_average_length(self):
+        """
+        Вычисляет среднюю длину документа в коллекции в словах
+        :return: float
+        """
         summat = 0
-        for length in self.table.values():
+        for docid in self.table:
+            length = 0
+            for zone in self.table[docid]:
+                length += self.table[docid][zone]
             summat += length
         return float(summat) / float(len(self.table))
 
 
 def all_entries(text):
+    """
+    Возвращяет словарь вида {термин: список вхождений (Entry)
+    данного термина в соответствующий текст} для всех слов, встречающихся в тексте, кроме стоп-слов
+    :param text: str
+    :return:
+    """
     entries = dict()
-    morph = pymorphy2.MorphAnalyzer()
+    # morph = pymorphy2.MorphAnalyzer()
     pos = 0
     for tok in nltk.word_tokenize(text):
         pos += 1
@@ -394,14 +457,17 @@ def all_entries(text):
         if term_nf not in entries:
             entries[term_nf] = list()
         entries[term_nf].append(Entry(pos, term[0].tag))
-        # print(entries[term_nf])
     return entries
 
 
 def build_idx(corpus_of_readable):
+    """
+    # build inverted index
+    :param corpus_of_readable: list of text_analisys.Readable objects
+    :return: InvertedIndex
+    """
     idx = InvertedIndex()
     for docid, c in enumerate(corpus_of_readable):
-        # build inverted index
         for zone in ['body', 'title', 'h1']:
             entries = all_entries(c.get_zone(zone))
             for term in entries:
@@ -410,60 +476,21 @@ def build_idx(corpus_of_readable):
     return idx
 
 
-class MyException(Exception):
-    pass
-
-
-def read_wp_html(u, project='1'):
-    try:
-        with open('{}+{}.txt'.format(project, hash(u)), mode='r', encoding='utf8', errors='ignore') as fin:
-            return fin.read()
-    except:
-        raise MyException()
-
-
-def write_wp_html(u, html, project='1'):
-    try:
-        with open('{}+{}.txt'.format(project, hash(u)), mode='w', encoding='utf8', errors='ignore') as f_out:
-            f_out.write(html)
-    except Exception as e:
-        print(html.encode('utf8', errors='ignore'))
-        print('OOps' + str(e))
-
-
 def get_html_files(f_name='C:\\_Work\\vostok\\2.txt'''):
     from text_analisys import Readable
-    import search_query.ya_query as sps
-    from search_query.content import WebPage
+    import search_engine_tk.ya_query as sps
+    from content import WebPage
 
-    readables = []
-    for q in sps.queries_from_file(f_name, 213)[1:]:
+    readable_s = []
+    for q in sps.queries_from_file(f_name, 213):
         print(q.query)
         for u in q.get_urls(10):
-            try:
-                w = read_wp_html(u, 'v')
-            except MyException:
-                try:
-                    w = WebPage(u).html()
-                except:
-                    print(u)
-                    continue
-                write_wp_html(u, w, 'v')
-            readables.append(Readable(w))
-    return readables
+            w = WebPage(u).html()
+            readable_s.append(Readable(w))
+    return readable_s
 
 
 if __name__ == '__main__':
     indx = build_idx(get_html_files())
-    #import pickle
-    # try:
-    #with open('data.pickle', 'rb') as f:
-        #indx = pickle.load(f)
-    """except Exception as e:
-
-    indx = build_idx(make_corp_file())
-    with open('data.pickle', 'wb') as f:
-            pickle.dump(indx, f)"""
-
     for i in indx.doc_ids():
-        print(indx.total_score(i, 'купить rehnre'))
+        print(indx.total_score(i, 'купить сапоги'))

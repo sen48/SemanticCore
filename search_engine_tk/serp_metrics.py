@@ -1,6 +1,5 @@
 
 
-
 class RatingDistException(Exception):
     pass
 

@@ -1,8 +1,11 @@
+"""
+Модуль для раскраски текста в соответствии с "тематичностью" слов.
+"""
 import re
 import pymorphy2
 import text_analisys
-import search_query.serps as wrs
-from search_query.content import WebPage
+import search_engine_tk.serp as wrs
+from content import WebPage
 
 
 def _get_par(word, morph):
@@ -144,13 +147,11 @@ def get_texts(query, region):
     serp_items = wrs.read_serp(query, region, 10)
     pgs = []
     for item in serp_items:
-        print(item.url)
         try:
             pgs.append(WebPage(item.url))
         except Exception as e:
             print(e)
             continue
-
     return [text_analisys.Readable(p.html()).title() + text_analisys.Readable(p.html()).text() for p in pgs]
 
 
@@ -184,8 +185,8 @@ if __name__ == "__main__":
 
     QUERIES = ["адронный коллайдер", "бозон Хиггса"]
 
-    text, comm, col, wierd = colorize(QUERIES, analyzed_text=TEXT, region=213)
-    print(text)
+    txt, comm, col, wierd = colorize(QUERIES, analyzed_text=TEXT, region=213)
+    print(txt)
     print(comm)
     print(col)
     print(wierd)

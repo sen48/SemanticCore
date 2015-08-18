@@ -1,5 +1,5 @@
 __author__ = 'lvova'
-from search_query.ya_query import queries_from_file
+from search_engine_tk.ya_query import queries_from_file
 
 if __name__ == "__main__":
     queries = queries_from_file('c:/_Work/vostok/2.txt', 213)

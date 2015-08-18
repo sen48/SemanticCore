@@ -6,8 +6,6 @@ def get_hostname(url):
     return urlparse(url).hostname
 
 
-# <script async src="http://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"> </script>
-# <div id="yandex_ad"></div>
 class SerpItem:
     URL_COMM_WORDS = ['shop', 'catalog', 'cat/', 'katalog/', 'card', 'product', 'category', 'stock', ]
     URL_INF_WORDS = ['news', 'info', 'blog', 'forum', 'article', 'help', 'wiki', 'topic', 'story', 'post', 'news',
@@ -56,7 +54,6 @@ class SerpItem:
 
     def get_domain(self):
         return get_hostname(self.url)
-
 
     def _check_comm_inf_words(self, string):
         """
@@ -121,13 +118,13 @@ class SerpItem:
 
 
     def count_commercial_wp(self):
-        from search_query.content import WebPage
+        from search_engine_tk.content_old import WebPage
 
         wp = WebPage(self.url)
         return wp.count_commercial()
 
     def count_informational_wp(self):
-        from search_query.content import WebPage
+        from search_engine_tk.content_old import WebPage
 
         wp = WebPage(self.url)
         return wp.count_informational()

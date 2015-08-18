@@ -239,25 +239,4 @@ def squareform_rel(y):
     return d
 
 
-def mult(fun):
-    n = 4
-    y_un = [0.8, 0.1, 0.5, 0.4, 0.2, 0.9]
-    y0 = y_un
-    d0 = squareform(y0)
-    y_s = y_un
-    while True:
-        print(str(squareform_rel(y_un)))
-        y_un_old = y_un
-        d_s = squareform(y_s)
-        y_s = [max([fun(d0[i, k], d_s[j, k]) for k in range(n)]) for i in range(n) for j in range(i + 1, n)]
-        y_un = [max(el, y_s[i]) for i, el in enumerate(y_un)]
-        # plot_graph(dist_matrix = d_un)
-        if y_un_old == y_un:
-            print(str(squareform_rel(y_un)))
-            break
 
-
-if __name__ == "__main__":
-    xs = [(x + 1) / 100 for x in range(200)]
-    ys = [math.log(1 - math.exp(-1.5 * x)) for x in xs]
-    plot_x_y(xs, ys, 1)

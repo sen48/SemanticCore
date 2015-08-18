@@ -25,7 +25,7 @@ def forel(dist, R, n_tries=200):
             quality - сумма внутриклассовых дисперсий для разбиения f_cluster.
      """
 
-    dist = cc.norm_pdist(dist)
+    dist = cc.square_pdist(dist)
     f_cluster = np.ones(dist.shape[0])
     quality = None
     f_centers = []

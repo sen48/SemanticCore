@@ -6,8 +6,8 @@ import statistics
 import igraph as ig
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
-from search_query.ya_query import queries_from_file
-from search_query.serp_metrics import number_of_common_urls
+from search_engine_tk.ya_query import queries_from_file
+from search_engine_tk.serp_metrics import number_of_common_urls
 
 
 MINUSWORDS = ['где', 'как', 'фото', 'своими руками', 'видео', 'скачать', 'бесплатно', 'икея', 'леруа', 'мерлен',

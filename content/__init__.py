@@ -1,20 +1,18 @@
 import re
 import statistics
-from zlib import compress
-from sys import getsizeof
-
-from grab import Grab
 import urllib
 import bs4
 import bs4.element
 import grab
 import read
-import bm_25.invdx as bm
-import text_analisys
 import pymorphy2
 import nltk
+from zlib import compress
+from sys import getsizeof
+from grab import Grab
 from string import punctuation
 from nltk.corpus import stopwords
+
 stop_words = stopwords.words('russian')
 stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нужный',
                    'перед', 'весь', 'хотеть', 'цель', 'сказать', 'ради', 'самый', 'согласно',
@@ -25,37 +23,6 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
                    'наш', 'всей', 'однако', 'очевидно', "намного", "один", "по-прежнему",
                    'суть', 'очень', 'год', 'который', 'usd'])
 morth = pymorphy2.MorphAnalyzer()
-
-def _get_attr(t, attribute):
-    if not t:
-        return []
-    if isinstance(t, bs4.element.Tag):
-        try:
-            c = t['class']
-            return c
-        except KeyError:
-            return []
-    c = t.attr(attribute, default='')
-    if c != '':
-        return c.split(' ')
-    else:
-        return []
-
-
-def _acceptable_phone(tel):
-    minus_numbers = ['1234567', '99999999', '987654']
-    phone_lengths = [12, 10, 11, 7, 6, 5]
-    return len(tel) in phone_lengths and all([m not in tel for m in minus_numbers])
-
-
-def _clear_phone(tel):
-    tel = re.sub(pattern=r'\D', repl='', string=tel)
-    if len(tel) == 11 and (tel.startswith('7') or tel.startswith('8')):
-        tel = tel[1:]
-    if len(tel) == 12 and tel.startswith('44'):
-        tel = tel[2:]
-    return tel
-
 
 
 class WebPage:
@@ -70,13 +37,14 @@ class WebPage:
         self._g.go(quote(url))
         self.doc = self._g.doc
 
-    def RetTic(self):
-        import urllib
+    def get_tic(self):
+        """
+        Возвращает тИЦ страницы. Использовать с осторожностью, могут забанить ip
+        """
         yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
 
         f = urllib.urlopen(yurl)
         st = f.read()
-        import re
         m = re.search(r'value="([0-9]{1,5})"', st)
 
         try:
@@ -85,28 +53,25 @@ class WebPage:
             tic = 0
         return tic
 
-    def RetYaca(self):
-        'наличие сайта в яндекс каталоге на Python'
-        import urllib
+    def is_in_yaca(self):
+        """
+        Проверка наличия сайта в яндекс каталоге. Использовать с осторожностью, могут забанить ip
+        """
+
         yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
 
         f = urllib.urlopen(yurl)
         st = f.read()
-        import re
         m = re.search(r'<textinfo>(?P<author>[\W\w]+)</textinfo>', st)
-
-        try:
-            yaca = m.group(1)
-            print(yaca)
-        except:
-            yaca = ''
-
-        if len(yaca) > 2:
+        if m:
+            #yaca = m.group(1)
             return True
-        else:
-            return False
+        return False
 
     def get_phones(self):
+        """
+        Возвращает список номеров телефонов, встречающихся на странице.
+        """
         phone_pattern = re.compile(r'(?:^|[>"\s])(?:т[.]\D*|тел[.]\D*|телефон\D*)'
                                    r'(?:'
                                    r'(?:\d{2,3})[-– ]?(?:\d{2})[-– ]?(?:\d{2})|'
@@ -123,6 +88,10 @@ class WebPage:
         return [tel for tel in numbers if _acceptable_phone(tel)]
 
     def count_addresses(self):
+        """
+        Проверяет наличие адреса на странице.
+        Сначала ищет подходящую микроразметку. Если не нашел, ищет по регулярному выражению
+        """
         num = len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="adr"]')) + \
               len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="address"]')) + \
               len(self.doc.select('//*[@class="vcard"]/*[@class="adr"]')) + \
@@ -148,6 +117,9 @@ class WebPage:
         return len(p0.findall(html_body) + p1.findall(html_body) + p2.findall(html_body) + p3.findall(html_body))
 
     def is_search_on_page(self):
+        """
+        Проверяет наличие поиска по сайту.
+        """
         p = re.compile(r'''(?:^|>|=['"])[\s]*поиск(?: по сайту)?|найти[\s]*(?:$|[<'"])''',
                        flags=re.IGNORECASE)
         if len(p.findall(self.doc.unicode_body())) > 0:
@@ -157,32 +129,47 @@ class WebPage:
                     for t in self.doc.select('//*')])
 
     def is_face(self):
+        """
+        Если страница является "мордой" возвращает True, иначе False.
+        """
         p = re.compile(r'http://(?:[-_a-zA-Z.]+[.])+[a-z]{2,5}[/]?[\s]*$')
         return bool(p.match(self.url))
 
     def html(self):
+        """
+        Возвращяет html код страницы
+        """
         return self.doc.unicode_body()
 
     def title(self):
+        """
+        Возвращяет заголовок страницы, если заголовка нет возвращяет строку 'no-title'
+        """
         try:
             return self.doc.select('//title')[0].text()
         except (grab.error.DataNotFound, IndexError):
             return 'no-title'
 
     def description(self):
+        """
+        Возвращяет содержимое мета-тега "description", если его нет, возвращяет строку 'no-description'
+        """
         try:
             p = self.doc.select('//meta[@name="description"]').node().get('content')
             return p
         except grab.error.DataNotFound:
             return 'no-description'
 
-    #def get_read_doc(self):
-    #    return read.Document(self.html())
-
     def readable(self):
+        """
+        Возвращяет текстовое содержимое страницы (без сквозного содержимого, содержательну часть) с html разметкой
+        """
         return read.Document(self.html()).summary()
 
     def text(self):
+        """
+        Возвращяет текстовое содержимое страницы (без сквозного содержимого, содержательнуб часть) без html
+        """
         html_doc = read.Document(self.html()).summary()
         soup = bs4.BeautifulSoup(html_doc)
         text = soup.get_text()
@@ -195,15 +182,24 @@ class WebPage:
         return text
 
     def text_len(self):
+        """
+        Длина содержательного текста
+        """
         return len(self.text())
 
     def is_online_consultant_on_page(self):
+        """
+        Проверяет наличие онлайн консультанта
+        """
         p = re.compile(r'livetex.ru/js/client.js|web.redhelper.ru/service/main.js|static.cloudim.ru/js/chat.js|'
                        r'consultsystems.ru/script/|//code.jivosite.com/script/widget/|'
                        r'//widget.siteheart.com/apps/js/sh.js')
         return len(p.findall(self.html())) > 0
 
     def is_video_on_page(self):
+        """
+        Проверяет наличие видео контента
+        """
         divs = self.doc.select('//div[@itemtype="http://schema.org/VideoObject"]')
         if len(divs) > 0:
             return True
@@ -214,11 +210,17 @@ class WebPage:
                     for v in video_sources])
 
     def is_file_on_page(self, ext='pdf'):
+        """
+        Проверяет наличие ссылки на фаил с расширением ext
+        """
         p = re.compile(r'[.]{}$'.format(ext),
                        flags=re.IGNORECASE)
         return any([len(p.findall(r.text())) > 0 for r in self.doc.select('//a/@href')])
 
     def is_payment_on_page(self):
+        """
+        Проверяет наличие ссылки способы оплаты|доставки
+        """
         p = re.compile(r'''[>=]["]?[\s](?:(?:варианты|способы|условия)[\s]*(?:оплаты|доставки)[\s]*|'''
                        r'''доставка(?:[\s]*[и\\][\s]*оплата)|'''
                        r'''оплата(?:[\s]*[и\\][\s]доставка))[\s]*["<]''',
@@ -226,6 +228,9 @@ class WebPage:
         return len(p.findall(self.html())) > 0
 
     def is_pagination_on_page(self):
+        """
+        Проверяет наличие пагинатора
+        """
         p = re.compile(r'^.*?pag(?:inat|e|ing|or)[\s\S]*?$',
                        flags=re.IGNORECASE)
         cl = self.doc.select('//*[@class]')
@@ -249,6 +254,9 @@ class WebPage:
         return max(res_nums) if len(res_nums) else 0
 
     def _card_in_page_class(self):
+        """
+        Пытается определить класс карточки товара и возвращает количество объектов такого класса
+        """
         soup = bs4.BeautifulSoup(self.html())
         counter = []
         # texts = []
@@ -285,6 +293,9 @@ class WebPage:
         return divs
 
     def count_variety_on_page(self):
+        """
+        Считает количество различных товаров на странице
+        """
         tags = self._find_offer()
         if len(tags) > 0:
             return len(tags)
@@ -298,12 +309,18 @@ class WebPage:
         return self._card_in_page_class()
 
     def is_timetable_on_page(self):
+        """
+        Проверяет наличие времени работы на странице
+        """
         p = re.compile(r'(?:[>"]?[сc] ([\d]{1,2}:[\d]{2}) до ([\d]{1,2}:[\d]{2})|'
                        r'([\d]{1,2}:[\d]{2})(?:-| - )([\d]{1,2}:[\d]{2}))',
                        flags=re.IGNORECASE)
         return len(p.findall(self.html())) > 0
 
     def is_show_num_res_on_page(self):
+        """
+        Проверяет ести ли упомиание о количестве товаров на странице
+        """
         p = re.compile(r'(?:(?:количество(?:[&]nbsp[;]|\s)|>)на стр(?:[.]|анице)|'
                        r'(?:выводить|показывать|показать|вывести)(?:[&]nbsp[;]|\s)(?:по|товаров))'
                        r'[:]?(?:[&]nbsp[;]|\s)*(?:$|"|<)',
@@ -311,6 +328,9 @@ class WebPage:
         return len(p.findall(self.html())) > 0
 
     def is_basket_on_page(self):
+        """
+        Проверяет ести ли корзина
+        """
         p = re.compile(r'(?:^|>|=")(?:[0-9\s\S]*(?:моя |ваша |товар(?:ов|а)?)?корзин[ае](?: пуста)?[:]?[\s\S]*|'
                        r'[\s]?в корзине(?: (?:[0-9]+|(?:пока)? нет)? товар[(]?(?:ов|а)?[)]?)?)(?:$|<|")',
                        flags=re.IGNORECASE)
@@ -334,6 +354,9 @@ class WebPage:
         return False
 
     def count_buy_buttons(self):
+        """
+        считает количество кнопок "купить"
+        """
         soup = bs4.BeautifulSoup(self.html())
         spansdivs = [item for item in soup.findAll() if item.find('class')]
 
@@ -376,6 +399,9 @@ class WebPage:
         return res
 
     def count_prices(self):
+        """
+        считает количества ценников
+        """
         divs = self._find_offer()
         prices = []
         p_price_html = re.compile(r'''(?:["'>]|[^в][\s]*){}[ <"']'''.format(self.PRICE_PATTERN))
@@ -412,8 +438,11 @@ class WebPage:
         return len(prices)
 
     def is_advertising_on_page(self):
-         p = re.compile(r'(?:adsbygoogle|yandex_ad)', flags=re.IGNORECASE)
-         return len(p.findall(self.html())) > 0
+        """
+         Проверяет наличие рекламы
+         """
+        p = re.compile(r'(?:adsbygoogle|yandex_ad)', flags=re.IGNORECASE)
+        return len(p.findall(self.html())) > 0
 
     def is_ask_q_on_page(self):
         p = re.compile(r'>[\s]*(?:задать вопрос|отправить сообщение)[\s]*<', flags=re.IGNORECASE)
@@ -429,6 +458,9 @@ class WebPage:
         return len(p.findall(self.html())) > 0
 
     def is_catalogue_on_page(self):
+        """
+        Проверяет наличие каталога
+        """
         links = self.doc.select('//a[@href]')
         p_hr = re.compile(r'^/catalog(?:ue)?(?:[/]|$)')
         p = re.compile(r'(?:каталог|категории товаров)', flags=re.IGNORECASE)
@@ -442,6 +474,9 @@ class WebPage:
         return len(p.findall(self.html())) > 0
 
     def get_all(self):
+        """
+        Проверяет сразу все
+        """
         return {'phones': len(self.get_phones()),
                 'addresses': self.count_addresses(),
                 'buy_buttons': self.count_buy_buttons(),
@@ -464,12 +499,18 @@ class WebPage:
                 'video': self.is_video_on_page()}
 
     def compare(self, pages):
+        """
+        Сравнивает текущую страницу со страницами pages
+        """
         m = self.get_all()
         markers = [page.get_all() for page in pages]
         v = _vote(markers, m)
         return v
 
     def count_commercial(self):
+        """
+        считает сколько коммерческих факторов есть на странице
+        """
         res = self.is_basket_on_page() > 0
         res += self.is_payment_on_page() > 0
         res += self.is_price_list_on_page() > 0
@@ -479,6 +520,9 @@ class WebPage:
         return res
 
     def count_informational(self):
+        """
+        считает сколько коммерческих факторов есть на странице
+        """
         res = len(self.text()) > 1000
         res += 3 * (self.is_advertising_on_page() > 0)
         res += self.is_video_on_page() > 0
@@ -486,7 +530,10 @@ class WebPage:
         return res
 
     def compare_texts(self, pages):
-        texts = [pg.text() for pg in pages]
+        """
+        Ищет слова, которые не встречаются на странице, но встречаются в текстах pages
+        """
+        texts = [page.text() for page in pages]
         text = _text_to_list(self.text())
         res = list()
         for word in _common_words(texts):
@@ -495,8 +542,10 @@ class WebPage:
         return res
 
     def compare_titles(self, pages):
-        # TODO: write body
-        texts = [pg.title() for pg in pages]
+        """
+        Ищет слова, которые не встречаются в заголовке страницы, но встречаются в заголовках pages
+        """
+        texts = [page.title() for page in pages]
         text = _text_to_list(self.title())
         res = list()
         for word in _common_words(texts):
@@ -505,8 +554,10 @@ class WebPage:
         return res
 
     def compare_descriptions(self, pages):
-        # TODO: write body
-        texts = [pg.description() for pg in pages]
+        """
+        Ищет слова, которые не встречаются в мета теге description страницы, но встречаются в тdescriptionах pages
+        """
+        texts = [page.description() for page in pages]
         text = _text_to_list(self.description())
         res = list()
         for word in _common_words(texts):
@@ -514,13 +565,9 @@ class WebPage:
                 res.append(word)
         return res
 
-
-
     def gz_rate(self):
         """
         Расчитывает степень сжимаемости текста
-
-        :return:
         """
         t = self.text()
         text_compressed = compress(bytes(t, 'UTF-8'))
@@ -529,7 +576,41 @@ class WebPage:
         return float(n) / n_compressed
 
 
+def _get_attr(t, attribute):
+    if not t:
+        return []
+    if isinstance(t, bs4.element.Tag):
+        try:
+            c = t['class']
+            return c
+        except KeyError:
+            return []
+    c = t.attr(attribute, default='')
+    if c != '':
+        return c.split(' ')
+    else:
+        return []
+
+
+def _acceptable_phone(tel):
+    minus_numbers = ['1234567', '99999999', '987654']
+    phone_lengths = [12, 10, 11, 7, 6, 5]
+    return len(tel) in phone_lengths and all([m not in tel for m in minus_numbers])
+
+
+def _clear_phone(tel):
+    tel = re.sub(pattern=r'\D', repl='', string=tel)
+    if len(tel) == 11 and (tel.startswith('7') or tel.startswith('8')):
+        tel = tel[1:]
+    if len(tel) == 12 and tel.startswith('44'):
+        tel = tel[2:]
+    return tel
+
+
 def _text_to_list(text):
+    """
+    Возвращает список слов текста в нормальной форме в порядке, в котором они идут в тексте.
+    """
     res = list()
     for word in nltk.word_tokenize(text):
         word = morth.parse(word)[0].normal_form
@@ -540,6 +621,9 @@ def _text_to_list(text):
 
 
 def _common_words(texts):
+    """
+    Возвращает слова, которые встречаются во всех текстах в нормальной форме
+    """
     corpus = [_text_to_list(text) for text in texts]
     fdist = set([tok for s in corpus for tok in s])
 
@@ -547,25 +631,31 @@ def _common_words(texts):
 
 
 def _accept(values, val):
+    """
+    Возвращает True, если число value не сильно отличается от значение элементов списка values
+    """
     mean = statistics.mean(values)
     sigma = statistics.stdev(values)
     return mean - sigma <= val <= mean + sigma
 
 
 def _vote(marker_dics, m):
+    """
+    Возвращает  список ключей словаря m, для которых значение сильно отличается от соответствующих значений marker_dics
+    """
     acceptable = {}
     for ind in m:
         values = [markers[ind] for markers in marker_dics]
         val = m[ind]
-        #print(ind)
-        #print(val)
-        #print(values)
         acceptable[ind] = _accept(values, val)
     cols = [k for k in acceptable if not acceptable[k]]
     return cols
 
 
 def quote(url):
+    """
+    Переделывает url, чтобы он помещался в БД
+    """
     pref = ''
     if url.startswith('http://'):
         pref = 'http://'
@@ -584,19 +674,20 @@ def quote(url):
 
 
 if __name__ == '__main__':
-    import search_query.serps as wrs
-    semcorefile = 'C:\\_Work\\vostok\\to_clust_prav.txt'
-    queries = ['очки для сварщиков']#wrs.queries_from_file(semcorefile)
+    import search_engine_tk.serp as wrs
 
-    for i, query in enumerate(queries):
+    semcorefile = 'C:\\_Work\\vostok\\to_clust_prav.txt'
+    queries = ['очки для сварщиков']  # wrs.queries_from_file(semcorefile)
+
+    for query in queries:
         print(query)
 
         serp_items = wrs.read_serp(query, 213, 10)
         pgs = []
-        for item in serp_items:
-            print(item.url)
+        for s_item in serp_items:
+            print(s_item.url)
             try:
-                pgs.append(WebPage(item.url))
+                pgs.append(WebPage(s_item.url))
             except grab.error.GrabTooManyRedirectsError:
                 continue
 
@@ -604,10 +695,8 @@ if __name__ == '__main__':
         print(pos)
         print(serp_item.url)
         pg = WebPage(serp_item.url)
-        #print(pg.compare(pgs))
 
-
-        print([p.text_len() for p in pgs ])
+        print([p.text_len() for p in pgs])
         print(pg.text_len())
 
         print('text:', pg.compare_texts(pgs))

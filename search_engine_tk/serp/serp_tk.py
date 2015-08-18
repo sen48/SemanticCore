@@ -174,7 +174,7 @@ def get_yandex(key, region, page, site=''):
         'page': page,
         'correct': 'off',
     })
-    return get_serp_items_(params, "search_query-item__title clearfix", "b-captcha__image")
+    return get_serp_items_(params, "search_engine_tk-item__title clearfix", "b-captcha__image")
 
 
 def get_serp_items_grab_(params, find_class, captcha_class):

@@ -1,5 +1,5 @@
 import functools
-from scipy.spatial.distance import pdist, squareform, num_obs_y
+from scipy.spatial.distance import squareform, num_obs_y
 import numpy as np
 
 

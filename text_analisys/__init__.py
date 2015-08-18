@@ -73,40 +73,6 @@ def get_alts(response):
     alts = [a.text() for a in list(response.select('//img/@alt')) if len(a.text()) > 0]
     return alts
 
-'''
-def _text_sub(html_doc, rex):
-    return re.compile(rex).sub(' ', html_doc)
-
-
-
-def make_plain_text_files(queries_file, path):
-    """
-
-    :param path:
-    """
-    import search_query.ya_query as sps
-    i = 0
-    for q in sps.queries_from_file(queries_file, 2)[1:]:
-        make_plain_text_files_urls(q.get_urls(10), path)
-
-
-def make_plain_text_files_urls(urls, path):
-    """
-
-    :param urls:
-    :param path:
-    """
-    from search_query.content import WebPage
-
-    for u in urls:
-        try:
-            r = Readable(WebPage(u).html())
-            with open(os.path.join(path, str(hash(u)) + '.txt'), mode='w', encoding='utf8') as f_out:
-                f_out.write(r.title() + '/n' + r.text())
-        except:
-            print(u)
-'''
-
 
 def load_ruscorpra_frqs():
     """
@@ -221,3 +187,4 @@ if __name__ == '__main__':
     fdist1 = nltk.FreqDist(text1)
     fdist1.plot(500, cumulative=False)
     # print(nltk.pos_tag(text1))"""
+

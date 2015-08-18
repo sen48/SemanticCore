@@ -1,11 +1,14 @@
+"""
+Тут все нужно переделывать
+"""
+
+
 import urllib
 from urllib.parse import urlparse
-
 import mysql.connector
 from mysql.connector import errorcode
-
-from search_query.serps.serp_yaxml import corresponding_page, YaException, get_serp
-from search_query.serp_item import SerpItem
+from search_engine_tk.serp.serp_yaxml import corresponding_page, YaException, get_serp
+from search_engine_tk.serp_item import SerpItem
 
 
 class ReadSerpException(Exception):
@@ -24,25 +27,6 @@ data_base_config = {
     'raise_on_warnings': True,
 }
 
-"""
-def __norm_string(string):
-    sep = ';,\t'
-    for s in sep:
-        if s in string:
-            q = string.split(s)
-            string = q[0]
-            break
-    while string[-1] == ' ':
-        string = string[:-1]
-    if not string[0].isalnum():
-        string = string[1:]
-    while len(string) > 0 and (string[-1] == '\n' or string[-1] == '\r'):
-        string = string[:-1]
-    return string"""
-
-
-def write_report(data_frame, report_file='result.csv'):
-    data_frame.to_csv(report_file, sep=';', index=False)
 
 
 def _read_from_db(get_str, data=None):
@@ -67,11 +51,11 @@ def _read_from_db(get_str, data=None):
 
 def read_url_position(hostname, query, region):
     """
-
+    Возвращяет позицию релевантной страницы и соответствующий ей объект класса SerpItem
     :param hostname: str, адрес сайта без http:// и www
     :param query: str, запрос
     :param region: int, номер региона
-    :return: tuple, пара состоящая из номера позиции и объекта класса SerpItem,
+    :return: пара состоящая из номера позиции и объекта класса SerpItem,
              соответствующего странице сайта в поисковой выдаче. Если сайт не присутствует в ТОП100,
              то номер позиции принимается 200, и выполняется поис наиболее релевантной страницы сайта по
              запросу со словом site. Если такая не найдена, то вместо url, title, snippet в конструкторе SerpItem
@@ -107,10 +91,13 @@ def read_url_position(hostname, query, region):
 
 def read_serp(query, region, num_res):
     """
+    Возвращает выдачу яндекса по запросу
+
+
     :param query: str, запрос
     :param region: int, номер региона
     :param num_res: int, глубина ТОПа
-    :return: tuple, упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
+    :return: списокб упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
         соответствующий ТОП{top} поисковой выдачи
     """
 
@@ -135,7 +122,7 @@ def read_serp(query, region, num_res):
     rows = _read_from_db(get_serp, data_serp)
     # Если в БД нет нужного зароса (пары (запрос, регион)) записываем его в базу и считываем
     if len(rows) < num_res:
-        write_serp_db(query, region)
+        _write_serp_db(query, region)
         rows = _read_from_db(get_serp, data_serp)
         if len(rows) < num_res:
             raise ReadSerpException("Can't read serp")
@@ -146,14 +133,14 @@ def read_serp(query, region, num_res):
         if row[1] - 1 < num_res:
             res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
     if any([not isinstance(v, SerpItem) for v in res]):
-        write_serp_db(query, region)
+        _write_serp_db(query, region)
         rows = _read_from_db(get_serp, data_serp)
         for row in rows:
             if row[1] - 1 < num_res:
                 res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
     if any([not isinstance(v, SerpItem) for v in res]):
         raise ReadSerpException("Can't read serp")
-    return tuple(res)
+    return res
 
 
 def _cut_pref(url):
@@ -176,7 +163,7 @@ def _write_db(list_of_sql_queries):
     con.close()
 
 
-def write_serp_db(query, region, num_res=100):
+def _write_serp_db(query, region, num_res=100):
     s = get_serp(query, region, num_res)
     if len(s) != num_res:
         raise WriteSerpException('WriteSerpException')
@@ -224,14 +211,14 @@ def write_serp_db(query, region, num_res=100):
         q_list.append((add_serp, data_serp))
         _write_db(q_list)
 
-
+"""
 def get_all_queries():
     get_pos_url_id = '''SELECT
                             key_words, region
                         FROM
                             queries'''
     return _read_from_db(get_pos_url_id)
-
+"""
 
 def unquote(url):
     try:
@@ -251,5 +238,5 @@ if __name__ == '__main__':
                 ]"""
     for q in queries:
         print(q)
-        write_serp_db(q, 213, 10)
+        _write_serp_db(q, 213, 10)
 

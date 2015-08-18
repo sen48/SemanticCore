@@ -1,9 +1,8 @@
 import numpy as np
-import search_query.serps as wrs
 from scipy.spatial.distance import squareform
 
 
-norm_pdist = lambda pdist: squareform(pdist) if pdist.ndim == 1 else pdist
+square_pdist = lambda pdist: squareform(pdist) if pdist.ndim == 1 else pdist
 
 
 def _get_space_basis(serps):
@@ -17,7 +16,6 @@ def _get_space_basis(serps):
 
 
 def cluster_dist(first_cluster, second_cluster, dist):
-
     """
     Расстояние между кластерами
     :param first_cluster: список номеров объектов первого кластера
@@ -25,12 +23,11 @@ def cluster_dist(first_cluster, second_cluster, dist):
     :param dist: матрица рвсстояний между объеклами
     :return:
     """
-    dist = norm_pdist(dist)
+    dist = square_pdist(dist)
     return min(dist[c1][c2] for c1 in first_cluster for c2 in second_cluster)
 
 
 def get_queries_vectors(ya_queries, num_res, is_euclid):
-
     # Собираем id URLов ТОП{num_res} для всех запросов из списка ya_queries. Другими словами, кадному запросу ставим в
     # соответствие вектор длиной num_res, состоящий из натуральных чисел равных id URLов.
     vectors = [query.get_url_ids(num_res) for query in ya_queries]
@@ -45,10 +42,9 @@ def get_queries_vectors(ya_queries, num_res, is_euclid):
 
     if is_euclid:
         all_url_ids = _get_space_basis(vectors)  # - список всех различных id, встресающихся в serps
-        vectors = [[[(url_id in serp)for url_id in all_url_ids]] for serp in vectors]
+        vectors = [[[(url_id in serp) for url_id in all_url_ids]] for serp in vectors]
 
     return vectors
-
 
 
 class ClusterException(Exception):
@@ -80,7 +76,6 @@ def F1(f_cluster, dist):
 
 
 def renumerate(fcl):
-
     """
     Parameters
     ----------
@@ -97,82 +92,34 @@ def renumerate(fcl):
     # создается список пар (номер класстера, количество элементов в этом класстере) для всех номеров класстеров
     # и упорядочевается по убыванию кол-ва элементов
 
-    pairs = sorted([(k, sum([f == k for f in fcl])) for k in range(1, int(max(fcl)) + 1)], key=lambda x: x[1], reverse=True)
+    pairs = sorted([(k, sum([f == k for f in fcl])) for k in range(1, int(max(fcl)) + 1)], key=lambda x: x[1],
+                   reverse=True)
     # создается словарь, где старым номерам класстеров соответствуют новые, в порядке убывания кол-ва эл-тов
-    order = {p[0]: i+1 for i, p in enumerate(pairs)}
+    order = {p[0]: i + 1 for i, p in enumerate(pairs)}
     # возвращается новый fcl, где старые номера заменяются на новые
     return [order[k] for k in fcl]
 
 
-def print_clusters(fcls, queries, site,report_file):
-
-        """
+def print_clusters(fcls, queries, site, report_file):
+    """
 
         :param fcls: list
         :param queries: список объектов типа YaQuery
         :param report_file: фаил, в который пишем результат
         """
-        import pandas
-        fcl_cols = ['cl_{}'.format(i) for i, f in enumerate(fcls)]
-        columns = ['запрос']
-        columns += fcl_cols
-        columns += ['соотв позиция', 'соотв стр']
-        ps = [0 for query in queries]  # [wrs.read_url_position(site, query.query,  query.region) for query in queries]
-        pos = [p for p in ps]  # [p[0] for p in ps]
-        pgs = [p for p in ps]  # [p[1].url for p in ps]
-        array = [[] for i in range(len(fcls)+3)]
-        array[0] = [query.query for query in queries]
-        array[1: 1+len(fcls)] = fcls
-        array[1+len(fcls): 3+len(fcls)] = [pos, pgs]
-        data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
-        wrs.write_report(data_frame.sort(fcl_cols.append('соотв стр')), report_file)
-
-
-if __name__ == "__main__":
     import pandas
-    from search_query.ya_query import YaQuery
+    import search_engine_tk.serp as wrs
 
-    def mvp(semcorefile, fout_name, site, region):
-        '''Kohonen self-organizing map clusterization
-
-        '''
-
-        import mvpa2.suite
-        import kohonen.kohonen
-        from search_query.ya_query import queries_from_file
-        num_res = 10
-        queries = queries_from_file(semcorefile, region)
-        data = get_queries_vectors(queries, num_res, True)
-
-        data_names = [q.query for q in queries]
-        N = 20
-        H = 30
-        par = kohonen.kohonen.Parameters(
-                 dimension=2,
-                 shape=(N, H),
-                 metric=None,
-                 learning_rate=0.05,
-                 neighborhood_size=None,
-                 noise_variance=None)
-
-        som = kohonen.kohonen.Map(par)
-        som.learn(data)
-        img = som.distance_heatmap(data)
-        img.save("pil-example.png")
-        som = mvpa2.suite.SimpleSOMMapper((N, H), 100, learning_rate=0.05)
-        som.train(data)
-        mapped = som(data)
-        mvpa2.suite.pl.title('DATA SOM')
-        mvpa2.suite.pl.ylim([0, N])
-        mvpa2.suite.pl.xlim([0, H])
-        for i, m in enumerate(mapped):
-            print(i, m[1], m[0], data_names[i])
-            mvpa2.suite.pl.text(m[1], m[0], data_names[i], ha='center', va='center',
-                    bbox=dict(facecolor='white', alpha=0.5, lw=0))
-        mvpa2.suite.pl.savefig('b.png')
-
-
-
-
-
-    #mvp('C:\\_Work\\lightstar\\to_clust.txt', 'c:\\_Work\\trav\\result_clust_2.csv', 'newlita.com', 2)
+    fcl_cols = ['cl_{}'.format(i) for i, f in enumerate(fcls)]
+    columns = ['запрос']
+    columns += fcl_cols
+    columns += ['соотв позиция', 'соотв стр']
+    ps = [wrs.read_url_position(site, query.query,  query.region) for query in queries]
+    pos = [p[0] for p in ps]
+    pgs = [p[1].url for p in ps]
+    array = [[] for i in range(len(fcls) + 3)]
+    array[0] = [query.query for query in queries]
+    array[1: 1 + len(fcls)] = fcls
+    array[1 + len(fcls): 3 + len(fcls)] = [pos, pgs]
+    data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
+    data_frame.sort(fcl_cols.append('соотв стр')).to_csv(report_file, sep=';', index=False)

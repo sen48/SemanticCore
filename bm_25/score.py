@@ -16,8 +16,6 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
                    "суть", "очень", "год", "который", 'usd'])
 
 
-__author__ = 'lvova'
-
 def _read_idfs(file):
     idf = dict()
     for line in open(file, mode='r', encoding='utf-8'):
@@ -40,7 +38,6 @@ def _read_idfs(file):
 class TextTable:
     def __init__(self, text):
         self.table = dict()
-        #self.words = dict()
         morph = pymorphy2.MorphAnalyzer()
         pos = 0
         tokens = nltk.word_tokenize(text)
@@ -79,20 +76,21 @@ class ScoreCounter:
             tf = text_table.get_term_frequency(word)
             res += rank.score_bm25(1/self.get_df(word), tf, 10, text_table.length, len(self.DF))
         return res
-    w_s = w_single(document, zone, terms, p_type)
-    w_p = w_pair(document, zone, terms, p_type)
-    w_a = w_all_words(document, zone, terms, p_type)
-    w_ph = w_phrase(document, zone, query, p_type)
-    w_h = w_half_phrase(document, zone, terms, idfs, p_type)
+    #w_s = w_single(document, zone, terms, p_type)
+    #w_p = w_pair(document, zone, terms, p_type)
+    #w_a = w_all_words(document, zone, terms, p_type)
+    #w_ph = w_phrase(document, zone, query, p_type)
+    #w_h = w_half_phrase(document, zone, terms, idfs, p_type)
 
 if __name__ == '__main__':
     sc = ScoreCounter('C:\\_Work\\SemanticCore\\bm_25\\NKRL.csv')
-    text = TextTable('ываы')
+    text = TextTable(
     " Есть и другой подход: попытаться повлиять на поведенческие факторы за счет привлечения аудитории другими способами. Раньше для этого просто использовались «накрутки». Как мы помним, первые системы генерировали ботов, которые совершали необходимые действия в поисковой выдаче и на продвигаемых сайтах. Но поисковики начали внедрение систем, способных отсеивать подобное продвижение и делать его бесполезным, неэффективным, и даже вредным.\n"
     "\n"
     "В качестве ответа, оптимизаторы перешли от роботизированных «накруток» к раздаче заданий всем пользователям подряд, что до сих пор неплохо работает для продвижения, но с учетом разумного применения технологии. \n"
     "\n"
     "В результате, сейчас рынок поведенческих факторов стал динамично развиваться, а поведенческие сервисы стали отдаленно напоминать старые добрые ссылочные биржи. Сервис SERPClick.ru о котором я уже упоминал ранее, как раз позволяет эффективно и, на мой взгляд, гораздо более выгодно влиять на поведенческие факторы для ранжирования сайта в выдаче.\n"
+    )
 
     query = TextTable('ываы')
     print(sc.count(text, query))

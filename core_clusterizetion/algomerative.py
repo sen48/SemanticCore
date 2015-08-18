@@ -93,7 +93,7 @@ def queries_linkage(ya_queries, num_res, method, metrics):
     return _get_linkage(vectors, method, metrics)
 
 if __name__ == "__main__":
-    from search_query.ya_query import queries_from_file
+    from search_engine_tk.ya_query import queries_from_file
     import core_clusterizetion.visual as visual
 
     def main(semcorefile, fout_name, site, region):

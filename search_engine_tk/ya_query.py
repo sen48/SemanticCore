@@ -1,7 +1,8 @@
 import math
 import nltk
-import search_query.serps as wrs
-from search_query.serp_metrics import rating_dist
+import re
+import search_engine_tk.serp as wrs
+from search_engine_tk.serp_metrics import rating_dist
 
 
 class YaQuery:
@@ -44,7 +45,6 @@ class YaQuery:
             упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
             соответствующий ТОП{top} поисковой выдачи
         """
-        #print(self.query)
         return wrs.read_serp(self.query, self.region, top)
 
     def get_position_page(self, site):
@@ -56,7 +56,6 @@ class YaQuery:
                 адрес сайта без http:// и www
         Returns
         -------
-             tuple
              пара состоящая из номера позиции и объекта класса SerpItem,
              соответствующего странице сайта в поисковой выдаче. Если сайт не присутствует в ТОП100,
              то номер позиции принимается 200, и выполняется поис наиболее релевантной страницы сайта по
@@ -79,7 +78,6 @@ class YaQuery:
                 упорядоченный по позиции в выдаче список idшников urlов в БД длиной top,
                 соответствующий ТОП{top} поисковой выдачи
         """
-        print(self.query)
         return [item.url_id for item in self.get_serp(top)]
 
     def get_domains(self, top):
@@ -112,7 +110,6 @@ class YaQuery:
         """
         for item in self.get_serp(top):
             yield item.url
-
 
     def count_commercial(self, top):
         """
@@ -179,27 +176,18 @@ class YaQuery:
         return self.competitiveness(top) * math.log(position+1, 2)
 
 
-def _norm_string(string):
-    sep = ';,\t'
-    for s in sep:
-        if s in string:
-            q = string.split(s)
-            string = q[0]
-            break
-    while string[-1] == ' ':
-        string = string[:-1]
-    if not string[0].isalnum():
-        string = string[1:]
-    while len(string) > 0 and (string[-1] == '\n' or string[-1] == '\r'):
-        string = string[:-1]
-    return string
-
-
-def queries_from_file(kernel_file, region):
+def queries_from_file(file, region):
+    """
+    Возвращает список объектов YaQuery, соответствующих запросам из файла
+    :param file:
+    :param region: int, регион поиска
+    :return:
+    """
     try:
         queries = []
-        for line in open(kernel_file, mode='r', encoding='utf-8'):
-            query = YaQuery(_norm_string(line), region)
+        for line in open(file, mode='r', encoding='utf-8'):
+            line = re.sub(r'[^\w\s]+|[\d]+|•', r' ', line).strip().lower()
+            query = YaQuery(line, region)
             if query in queries or len(query.query) == 0:
                 continue
             queries.append(query)
