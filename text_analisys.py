@@ -1,4 +1,3 @@
-import os
 import pickle
 import re
 import collections
@@ -31,13 +30,7 @@ class Readable(read.Document):
         """
         soup = bs4.BeautifulSoup(self.summary())
         text = soup.get_text()
-        '''text = text.replace('#', '').replace('↵', '').replace('↑', '').replace('°', '').replace('©', '').
-        replace('«', '').
-        replace('»', '').replace('$', '').replace('*', '').replace(u"\.", "").replace(u"\,", "").replace(u"^", "").
-        replace(u"|", "").replace(u"—", "").replace(u',', '').replace(u'•', '').replace(u'﴾', '').replace(u'﴿', '')'''
-        p = re.compile(r'[\n\r][\n\r \t\a]+')
-        text = p.sub('\n', text)
-        return text
+        return re.compile(r'[\n\r][\n\r \t\a]+').sub('\n', text)
 
     def _get_tag(self, tag):
         doc = self._html(True)
@@ -80,10 +73,10 @@ def get_alts(response):
     alts = [a.text() for a in list(response.select('//img/@alt')) if len(a.text()) > 0]
     return alts
 
-
+'''
 def _text_sub(html_doc, rex):
-    p = re.compile(rex)
-    return p.sub(' ', html_doc)
+    return re.compile(rex).sub(' ', html_doc)
+
 
 
 def make_plain_text_files(queries_file, path):
@@ -92,14 +85,17 @@ def make_plain_text_files(queries_file, path):
     :param path:
     """
     import search_query.ya_query as sps
-
     i = 0
     for q in sps.queries_from_file(queries_file, 2)[1:]:
-        print(q.query)
         make_plain_text_files_urls(q.get_urls(10), path)
 
 
 def make_plain_text_files_urls(urls, path):
+    """
+
+    :param urls:
+    :param path:
+    """
     from search_query.content import WebPage
 
     for u in urls:
@@ -109,13 +105,19 @@ def make_plain_text_files_urls(urls, path):
                 f_out.write(r.title() + '/n' + r.text())
         except:
             print(u)
+'''
 
 
 def load_ruscorpra_frqs():
+    """
+    Возвращает частоты слов в русском языке из НКРЯ
+
+    :return:
+    """
     try:
         with open('C:\\_Work\\SemanticCore\\CF.pickled', mode='rb') as pickled:
             cf = pickle.load(pickled)
-    except FileNotFoundError :
+    except FileNotFoundError:
         print('start')
         morph = pymorphy2.MorphAnalyzer()
         cf = collections.defaultdict(lambda: 0)
@@ -138,11 +140,24 @@ CF = load_ruscorpra_frqs()
 
 
 def collocations(sents):
+
+    """
+    Ищет колокации в тексте
+    :param sents: список строк
+    :return:
+    """
     text = nltk.text.Text([token for sentence in sents for token in nltk.word_tokenize(sentence) if token not in punctuation])
     return text.find_collocations(num=30)
 
 
 def words_freq(sents, normalize):
+    """
+    Считает частоты слов
+    :param sents: список строк
+    :param normalize: если ИСТИНА, то слова приводятся к нормальной форме
+    :return: два nltk.FreqDist. В первом общее число вхождений слов во все строки. Во втором количество документов,
+    в которые вошло слво
+    """
     morph = pymorphy2.MorphAnalyzer()
     words = []
     docdist = []
