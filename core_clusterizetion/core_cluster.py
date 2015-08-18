@@ -6,7 +6,11 @@ square_pdist = lambda pdist: squareform(pdist) if pdist.ndim == 1 else pdist
 
 
 def _get_space_basis(serps):
-    #
+    """
+    Список различных url в поисковых выдачах serps, без повторений
+    :param serps:
+    :return:
+    """
     all_url = []
     for s in serps:
         for u in s:
@@ -100,10 +104,11 @@ def renumerate(fcl):
     return [order[k] for k in fcl]
 
 
-def print_clusters(fcls, queries, site, report_file):
+def print_clusters(fcls, queries, report_file, site=None):
     """
-
-        :param fcls: list
+        Записывает в фаил результаты кластеризаций, если  site!=None, то дописывает релевантные страницы и позиции в
+        выдаче
+        :param fcls: list списое результатов кластеризации
         :param queries: список объектов типа YaQuery
         :param report_file: фаил, в который пишем результат
         """
@@ -113,13 +118,15 @@ def print_clusters(fcls, queries, site, report_file):
     fcl_cols = ['cl_{}'.format(i) for i, f in enumerate(fcls)]
     columns = ['запрос']
     columns += fcl_cols
-    columns += ['соотв позиция', 'соотв стр']
-    ps = [wrs.read_url_position(site, query.query,  query.region) for query in queries]
-    pos = [p[0] for p in ps]
-    pgs = [p[1].url for p in ps]
-    array = [[] for i in range(len(fcls) + 3)]
+    array = [[] for i in range(len(fcls) + 1)]
     array[0] = [query.query for query in queries]
     array[1: 1 + len(fcls)] = fcls
-    array[1 + len(fcls): 3 + len(fcls)] = [pos, pgs]
+    if site:
+        columns += ['соотв позиция', 'соотв стр']
+        ps = [wrs.read_url_position(site, query.query,  query.region) for query in queries]
+        pos = [p[0] for p in ps]
+        pgs = [p[1].url for p in ps]
+        array += [[], []]
+        array[1 + len(fcls): 3 + len(fcls)] = [pos, pgs]
     data_frame = pandas.DataFrame(np.array(array).T, columns=columns)
     data_frame.sort(fcl_cols.append('соотв стр')).to_csv(report_file, sep=';', index=False)

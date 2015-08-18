@@ -38,7 +38,7 @@ def read_serp(query, region, num_res):
         соответствующий ТОП{top} поисковой выдачи
     """
 
-    get_serp = '''SELECT
+    select_serp = '''SELECT
                         urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet
                   FROM
                                 (serp_items
@@ -56,13 +56,13 @@ def read_serp(query, region, num_res):
         'query': query,
         'region': region,
     }
-    rows = _read_from_db(get_serp, data_serp)
+    rows = _read_from_db(select_serp, data_serp)
     # Если в БД нет нужного зароса (пары (запрос, регион)) записываем его в базу и считываем.
     # TODO: Наверно, в случае когда num_res больше числа результатов в базе можно не перезаписывать все,
     # а дописать недостающие
     if len(rows) < num_res:
         _write_serp_db(query, region)
-        rows = _read_from_db(get_serp, data_serp)
+        rows = _read_from_db(select_serp, data_serp)
         if len(rows) < num_res:
             raise ReadSerpException("Can't read serp")
 
@@ -73,7 +73,7 @@ def read_serp(query, region, num_res):
             res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
     if any([not isinstance(v, SerpItem) for v in res]):
         _write_serp_db(query, region)
-        rows = _read_from_db(get_serp, data_serp)
+        rows = _read_from_db(select_serp, data_serp)
         for row in rows:
             if row[1] - 1 < num_res:
                 res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
@@ -94,7 +94,7 @@ def read_url_position(hostname, query, region):
              запросу со словом site. Если такая не найдена, то вместо url, title, snippet в конструкторе SerpItem
              используются пустые строки.
     """
-    get_pos_url_id = '''SELECT
+    select_pos_url_id = '''SELECT
                             t2.url_id, t2.url, pos, title, snippet
                         FROM
                             serp_items as t1
@@ -111,7 +111,7 @@ def read_url_position(hostname, query, region):
         'query': query,
         'region': region,
     }
-    rows = _read_from_db(get_pos_url_id, data)
+    rows = _read_from_db(select_pos_url_id, data)
     if len(rows) == 0:
         result = corresponding_page(query, region, hostname)
         if result:
@@ -224,9 +224,7 @@ def unquote(url):
 if __name__ == '__main__':
 
     queries = []
-    """[
-               'каски защитные купить',
-                ]"""
+
     for q in queries:
         print(q)
         _write_serp_db(q, 213, 10)

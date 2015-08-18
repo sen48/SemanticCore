@@ -56,5 +56,5 @@ if __name__ == "__main__":
 
     fcl1 = forel_shotest_open_path(y, 0.9, 0.6)
     fcl2 = forel_shotest_open_path(y, 0.9, 0.7)
-    core_cluster.print_clusters([fcl1, fcl2], queries, '', 'c:\\_Work\\vostok\\res_4.csv')
+    core_cluster.print_clusters([fcl1, fcl2], queries, 'c:\\_Work\\vostok\\res_4.csv', '')
 

@@ -7,7 +7,7 @@ import igraph as ig
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from search_engine_tk.ya_query import queries_from_file
-from search_engine_tk.serp_metrics import number_of_common_urls
+from search_engine_tk.serp_metrics import number_of_common_items
 
 
 MINUSWORDS = ['где', 'как', 'фото', 'своими руками', 'видео', 'скачать', 'бесплатно', 'икея', 'леруа', 'мерлен',
@@ -57,7 +57,7 @@ def load_vecs(fname):
 
 
 def get_graph(X, fname=None):
-    metric = lambda u, v: number_of_common_urls(u, v) / num_res
+    metric = lambda u, v: number_of_common_items(u, v) / num_res
 
     d = squareform(pdist(X, metric=metric))
     M, N = d.shape

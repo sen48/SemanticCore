@@ -118,11 +118,11 @@ if __name__ == "__main__":
         fcl5 = fcluster(z, 0.5)
         print('Algomerative ok')
 
-        fcl = [fcl0, fcl1, fcl2, fcl3, fcl4, fcl5]
+        fcls = [fcl0, fcl1, fcl2, fcl3, fcl4, fcl5]
 
-        core_cluster.print_clusters(fcl, queries, site, fout_name)
+        core_cluster.print_clusters(fcls, queries, fout_name, site)
         print('Print Ok')
-        visual.plot_dendrogram(z, fcl=fcl[0], fig=1, labels=[q.query for q in queries])
+        visual.plot_dendrogram(z, fcl=fcl0, fig=1, labels=[q.query for q in queries])
 
-    main('C:\\_Work\\vostok\\to_clust_prav.txt', 'c:\\_Work\\vostok\\result_clust_4.csv', 'lightstar.ru', 213)
+    main('C:\\_Work\\vostok\\to_clust_prav.txt', 'c:\\_Work\\vostok\\result_clust_4.csv', None, 213)
 

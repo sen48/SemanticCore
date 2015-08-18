@@ -1,4 +1,6 @@
-
+"""
+Различные расстояния между равными по длине списками
+"""
 
 class RatingDistException(Exception):
     pass
@@ -30,4 +32,4 @@ def rating_dist(r1, r2, method='CTR'):
     return summ / dev
 
 
-number_of_common_urls = lambda u, v: sum([int(i in v) for i in u])
+number_of_common_items = lambda u, v: sum([int(i in v) for i in u])

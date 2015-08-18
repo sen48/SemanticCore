@@ -1,11 +1,12 @@
-import math
+import random
+
 import networkx as nx
 import matplotlib.pyplot as plt
-import random
 import pylab as pl
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
 from matplotlib import rc
+
 
 rc('font', **{'family': 'verdana'})
 rc('text.latex', unicode=True)
@@ -70,15 +71,6 @@ def dendrogram1(data_frame, metric):
     return figure
 
 
-def plot_dendrogram2(z, fig=2):
-    plt.figure(fig)
-    labels = ['{}'.format(i) for i in range(len(z)+1)]
-    r = sch.dendrogram(z, labels=labels, leaf_rotation=45)
-    plt.savefig("dendrogram{}.png".format(fig))
-    plt.show()
-    return r['color_list'], r['leaves']
-
-
 def plot_dendrogram(z, fcl=None, labels=None, fig=12):
 
     if len(fcl) < 2:
@@ -127,7 +119,7 @@ def plot_dendrogram(z, fcl=None, labels=None, fig=12):
     plt.title(u'Дендрограмма')
     plt.axis('tight')  # 'scaled')
     sch.dendrogram(z, orientation='left', leaf_label_func=llf, link_color_func=lcf)
-    plt.savefig("dendrogram{}.png".format(fig))
+    # plt.savefig("dendrogram{}.png".format(fig))
     plt.legend()
     plt.grid()
     plt.show()
@@ -158,25 +150,6 @@ def plot_linkage_union_dist(z):
     plt.ylabel('number of clusters')
     plt.ylabel('distance')
     plt.savefig("pl.png")
-    plt.show()
-
-
-def plot_x_y1_y2(x, y1, y2, i):
-    plt.figure(i)
-    plt.clf()
-    plt.plot(x, y1, 'b+')
-    plt.plot(x, y2, 'go')
-    plt.ylabel('x')
-    plt.ylabel('y')
-    plt.show()
-
-
-def plot_x_y(x, y, i):
-    plt.figure(i)
-    plt.clf()
-    plt.plot(x, y, 'go')
-    plt.ylabel('x')
-    plt.ylabel('y')
     plt.show()
 
 
@@ -230,13 +203,6 @@ def plot_clustered_graph(dist_matrix, labels=None):
                 with_labels=False)
     plt.savefig("atlas.png", dpi=75)
     plt.show()
-
-
-def squareform_rel(y):
-    d = squareform(y)
-    for i in range(len(d)):
-        d[i, i] = 1
-    return d
 
 
 

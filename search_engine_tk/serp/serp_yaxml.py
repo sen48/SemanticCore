@@ -39,7 +39,7 @@ def corresponding_page(query, region, site):
     """
     y = YaSearch(API_USER, API_KEY)
     results = y.search(query, site=site, page=0, region=region)
-    if results:
+    if len(results.items) > 0:
         return results.items[0]
     else:
         return None
