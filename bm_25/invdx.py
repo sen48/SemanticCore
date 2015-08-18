@@ -6,6 +6,7 @@ import nltk
 from nltk.corpus import stopwords
 import pymorphy2
 import re
+import text_analysis
 
 
 punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
@@ -62,25 +63,6 @@ def _get_par_list(text):
     if isinstance(text, list):
         text = ' '.join(text)
     return _get_par_from_tokens(nltk.word_tokenize(text))
-
-
-def _read_idfs(file):
-    idf = dict()
-    for line in open(file, mode='r', encoding='utf-8'):
-        p = line.split(';')
-        if len(p) != 2:
-            raise Exception('%s has not supported data. ' % file)
-        word = p[1][:-1]
-        if word[0].isdigit():
-            continue
-        try:
-            while not p[0][0].isdigit():
-                p[0] = p[0][1:]
-            freq = int(p[0])
-        except:
-            raise Exception('%s has not supported data. ' % file)
-        idf[word] = freq
-    return nltk.ELEProbDist(nltk.FreqDist(idf))
 
 
 class Entry:
@@ -143,7 +125,7 @@ class InvertedIndex:
     p_type = 'idf'
 
     def __init__(self, idfs='C:\\_Work\\SemanticCore\\bm_25\\NKRL.csv'):
-        self.IDF = _read_idfs(idfs)
+        self.IDF = text_analysis.load_ruscorpra_frqs()
         self.index = dict()
         self.doc_lens = DocumentLengthTable()
 
@@ -193,7 +175,7 @@ class InvertedIndex:
         """
         частота слова в индексе
         """
-        return self.IDF.freq(word)
+        return self.IDF.prob(word)
 
     def score(self, doc_id, zone, query):
         """
@@ -463,7 +445,7 @@ def all_entries(text):
 def build_idx(corpus_of_readable):
     """
     # build inverted index
-    :param corpus_of_readable: list of text_analisys.Readable objects
+    :param corpus_of_readable: list of text_analysis.Readable objects
     :return: InvertedIndex
     """
     idx = InvertedIndex()
@@ -476,21 +458,30 @@ def build_idx(corpus_of_readable):
     return idx
 
 
-def get_html_files(f_name='C:\\_Work\\vostok\\2.txt'''):
-    from text_analisys import Readable
-    import search_engine_tk.ya_query as sps
-    from content import WebPage
-
-    readable_s = []
-    for q in sps.queries_from_file(f_name, 213):
-        print(q.query)
-        for u in q.get_urls(10):
-            w = WebPage(u).html()
-            readable_s.append(Readable(w))
-    return readable_s
-
-
 if __name__ == '__main__':
-    indx = build_idx(get_html_files())
+
+    def readables_by_queries_file(f_name):
+        """
+        Эта функция была создана для тестирования
+
+        Возвращяет список объектов типа text_analysis.Readable. соответствующих всем элементам ТОП10 поисковой выдачи
+        по всем запросам из файла f_name
+        :param f_name:
+        :return:
+        """
+        from text_analysis import Readable
+        import search_engine_tk.ya_query as sps
+        from content import WebPage
+
+        readable_s = []
+        for q in sps.queries_from_file(f_name, 213):
+            print(q.query)
+            for u in q.get_urls(top=10):
+                w = WebPage(u).html()
+                readable_s.append(Readable(w))
+        return readable_s
+
+
+    indx = build_idx(readables_by_queries_file(f_name='C:\\_Work\\vostok\\2.txt'))
     for i in indx.doc_ids():
         print(indx.total_score(i, 'купить сапоги'))

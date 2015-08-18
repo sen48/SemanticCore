@@ -125,4 +125,3 @@ if __name__ == "__main__":
         visual.plot_dendrogram(z, fcl=fcl0, fig=1, labels=[q.query for q in queries])
 
     main('C:\\_Work\\vostok\\to_clust_prav.txt', 'c:\\_Work\\vostok\\result_clust_4.csv', None, 213)
-

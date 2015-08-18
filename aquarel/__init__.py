@@ -1,9 +1,11 @@
 """
 Модуль для раскраски текста в соответствии с "тематичностью" слов.
 """
+
 import re
 import pymorphy2
-import text_analisys
+
+import text_analysis
 import search_engine_tk.serp as wrs
 from content import WebPage
 
@@ -60,7 +62,7 @@ def colorable(par):
     :param par: par = morph.parse(tok)[0]
     :return:
     """
-    return par.tag.is_productive() and par.normal_form not in text_analisys.stop_words and par.tag.POS != 'ADVB'
+    return par.tag.is_productive() and par.normal_form not in text_analysis.stop_words and par.tag.POS != 'ADVB'
 
 
 def color_word(par, fdist, max_freq):
@@ -119,17 +121,17 @@ def colorize(queries, analyzed_text='', region=213):
     for query in queries:
         collection += get_texts(query, region)
 
-    freq_dist, doc_dist = text_analisys.words_freq(collection, normalize=True)
+    freq_dist, doc_dist = text_analysis.words_freq(collection, normalize=True)
 
     color_text = colorize_text(doc_dist, analyzed_text)
     most_comm = [str(word[0]) for word in freq_dist.most_common(20) if str(word[0]) != '']
 
-    coll = ', '.join(text_analisys.collocations(collection))
+    coll = ', '.join(text_analysis.collocations(collection))
     weirdness = {}
     for w in freq_dist.keys():
         if w == '':
             continue
-        lang_freq = text_analisys.CF[w] if w in text_analisys.CF.keys() else 2
+        lang_freq = text_analysis.CF.prob(w) #[w] if w in text_analysis.CF.keys() else 2
         weirdness[w] = freq_dist.get(w) / lang_freq
     weird = sorted(weirdness.keys(), key=lambda k: weirdness[k], reverse=True)[:50]
 
@@ -152,7 +154,7 @@ def get_texts(query, region):
         except Exception as e:
             print(e)
             continue
-    return [text_analisys.Readable(p.html()).title() + text_analisys.Readable(p.html()).text() for p in pgs]
+    return [text_analysis.Readable(p.html()).title() + text_analysis.Readable(p.html()).text() for p in pgs]
 
 
 if __name__ == "__main__":
