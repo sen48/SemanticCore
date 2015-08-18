@@ -58,7 +58,7 @@ class SerpItem:
     def get_domain(self):
         return get_hostname(self.url)
 
-    def _check_comm_inf_words(self, string):
+    def _count_comm_inf_words(self, string):
         """
 
         :param string: str
@@ -71,25 +71,25 @@ class SerpItem:
         inf = len(self.PATTERN_INF_WORDS.findall(string.lower()))
         return comm, inf
 
-    def check_url(self):
+    def count_comm_inf_url(self):
         c = sum([w in self.url.lower() for w in self.URL_COMM_WORDS])
         i = sum([w in self.url.lower() for w in self.URL_INF_WORDS])
         return c, i
 
-    def check_title(self):
+    def count_comm_inf_title(self):
         """
         :return: (c,i) c - int, i - int
         возвращается пара целых чисел, первое(второе) равно количеству вхождений в title
         слов-маркеров коммерческости(информационности) запроса.
         """
-        return self._check_comm_inf_words(self.title)
+        return self._count_comm_inf_words(self.title)
 
-    def check_snippet(self):
+    def count_comm_inf_snippet(self):
         """
         :return: возвращается пара целых чисел, первое(второе) равно количеству вхождений в snippet
         слов-маркеров коммерческости(информационности) запроса.
         """
-        return self._check_comm_inf_words(self.snippet)
+        return self._count_comm_inf_words(self.snippet)
 
     def count_commercial(self):
         """
@@ -105,7 +105,6 @@ class SerpItem:
         res = u + t + s
         return res
 
-
     def count_informational(self):
         """
         :return: возвращается сумма числа вхождений слов-маркеров информационности запроса в url,
@@ -118,7 +117,6 @@ class SerpItem:
         # количество вхождений слов-маркеров информационности запроса в snippet:
         s = len(self.PATTERN_INF_WORDS.findall(self.snippet.lower()))
         return u + t + s
-
 
     def count_commercial_wp(self):
         from content import WebPage
