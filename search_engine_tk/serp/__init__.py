@@ -1,13 +1,28 @@
 """
-Тут все нужно переделывать
+Модуль предназначен для получения данных поисковой выдачи Яндекса.
+Чтобы не тратить лимиты Яндекс XML на одни и те же запросы, данные поисковой выдачи записываются в базу данных MySQL
+(см. serps.mwb)
+Требует доработки. Например, не проверяется цедосность данных полученных от Яндекс XML. Иногда просто зависает.
 """
 
 import urllib
 
 import mysql.connector
 
-from search_engine_tk.serp.serp_yaxml import corresponding_page, get_serp
+from datetime import date, timedelta
+from search_engine_tk.serp.yaxml import corresponding_page, get_serp
 from search_engine_tk.serp_item import SerpItem
+
+
+SERP_LIFETIME = 14  # days
+
+DB_CONFIG = {
+    'user': 'root',
+    'password': '135',
+    'host': 'localhost',
+    'database': 'serps',
+    'raise_on_warnings': True,
+}
 
 
 class ReadSerpException(Exception):
@@ -18,28 +33,20 @@ class WriteSerpException(Exception):
     pass
 
 
-data_base_config = {
-    'user': 'root',
-    'password': '135',
-    'host': 'localhost',
-    'database': 'serps',
-    'raise_on_warnings': True,
-}
-
-
 def read_serp(query, region, num_res):
     """
-    Возвращает выдачу яндекса по запросу
-    По-хорошему нужно проверять на сколько давно запись в БД, и если после этого был апдейт, то перезаписывать.
+    Возвращает выдачу яндекса по запросу. Сначала подходящие записи ищутся в БД, если их там нет, или меньше, чем
+    num_res, или записи устарели, то полечаем нвые через Яндеки XML и записываем в базу.
+
     :param query: str, запрос
     :param region: int, номер региона
     :param num_res: int, глубина ТОПа
-    :return: списокб упорядоченный по позиции в выдаче кортеж объектов типа SerpItem длиной top,
+    :return: список, упорядоченный по позиции в выдаче список объектов типа SerpItem длиной top,
         соответствующий ТОП{top} поисковой выдачи
     """
 
     select_serp = '''SELECT
-                        urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet
+                        urls.url_id,  serp_items.pos, urls.url, title, serp_items.snippet, queries.record_date
                   FROM
                                 (serp_items
                             INNER JOIN
@@ -57,17 +64,18 @@ def read_serp(query, region, num_res):
         'region': region,
     }
     rows = _read_from_db(select_serp, data_serp)
-    # Если в БД нет нужного зароса (пары (запрос, регион)) записываем его в базу и считываем.
-    # TODO: Наверно, в случае когда num_res больше числа результатов в базе можно не перезаписывать все,
-    # а дописать недостающие
-    if len(rows) < num_res:
+
+    # Если в БД нет нужного зароса (пары (запрос, регион)) или снято меньше позиций, чем нужно,
+    # или записям больше SERP_LIFETIME дней, записываем в базу и считываем.
+
+    if len(rows) < num_res or (len(rows) > 0 and date.today() - rows[0][5] > timedelta(days=SERP_LIFETIME)):
         _write_serp_db(query, region)
         rows = _read_from_db(select_serp, data_serp)
         if len(rows) < num_res:
             raise ReadSerpException("Can't read serp")
 
     # из rows делаем массив, нужного формата ( см ":return:")
-    res = [None for i in range(num_res)]
+    res = [None] * num_res
     for row in rows:
         if row[1] - 1 < num_res:
             res[row[1] - 1] = SerpItem(row[0], row[2], row[3], row[4])
@@ -94,6 +102,9 @@ def read_url_position(hostname, query, region):
              запросу со словом site. Если такая не найдена, то вместо url, title, snippet в конструкторе SerpItem
              используются пустые строки.
     """
+    # TODO: сделать проверку наличия актуальных данных в базе
+    read_serp(query, region, 100)  # вместо проверки
+
     select_pos_url_id = '''SELECT
                             t2.url_id, t2.url, pos, title, snippet
                         FROM
@@ -135,7 +146,7 @@ def _cut_pref(url):
 def _read_from_db(get_str, data=None):
     res = []
     try:
-        con = mysql.connector.connect(**data_base_config)
+        con = mysql.connector.connect(**DB_CONFIG)
         cur = con.cursor()
         cur.execute(get_str, data)
         res = list(cur)
@@ -153,7 +164,7 @@ def _read_from_db(get_str, data=None):
 
 
 def _write_db(list_of_sql_queries):
-    con = mysql.connector.connect(**data_base_config)
+    con = mysql.connector.connect(**DB_CONFIG)
     cur = con.cursor()
     for (add_query, data) in list_of_sql_queries:
         cur.execute(add_query, data)
@@ -163,6 +174,16 @@ def _write_db(list_of_sql_queries):
 
 
 def _write_serp_db(query, region, num_res=100):
+    del_old_serp_items = 'DELETE FROM serp_items WHERE ' \
+                         'query_id = (SELECT query_id FROM queries WHERE key_words = %(query)s AND region = %(region)s)'
+    add_query = 'INSERT INTO queries(key_words, region, record_date) VALUES (%(query)s, %(region)s, %(date)s)' \
+                'ON DUPLICATE KEY UPDATE record_date = %(date)s'
+    data_query = {
+        'query': query,
+        'region': region,
+        'date': str(date.today()),
+    }
+    _write_db([(add_query, data_query), (del_old_serp_items, data_query)])
     s = get_serp(query, region, num_res)
     if len(s) != num_res:
         raise WriteSerpException('WriteSerpException')
@@ -170,12 +191,7 @@ def _write_serp_db(query, region, num_res=100):
         url = unquote(result.url)
         q_list = []
         hostname = _cut_pref(urllib.parse.urlparse(url).hostname)
-        add_query = 'INSERT IGNORE INTO queries(key_words, region) VALUES (%(query)s, %(region)s)'
-        data_query = {
-            'query': query,
-            'region': region,
-        }
-        q_list.append((add_query, data_query))
+
         add_domain = 'INSERT IGNORE INTO domains(domain) VALUES (%(hostname)s)'
         data_domain = {
             'hostname': hostname,
@@ -221,11 +237,12 @@ def unquote(url):
             new_url = urllib.parse.unquote(url, encoding='koi8-r', errors='strict')
     return new_url
 
+
 if __name__ == '__main__':
 
-    queries = []
+    queries = ['часы']
 
     for q in queries:
-        print(q)
         _write_serp_db(q, 213, 10)
+        read_serp(q, 213, 10)
 

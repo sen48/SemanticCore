@@ -4,7 +4,7 @@ import chardet
 def get_encoding(page):
     # Regex for XML and HTML Meta charset declaration
     charset_re = re.compile(r'<meta.*?charset=["\']*(.+?)["\'>]', flags=re.I)
-    pragma_re = re.compile(r'<meta.*?content=["\']*;?charset=(.+?)["\'>]', flags=re.I)
+    pragma_re = re.compile(r'<meta.*?web_page_content=["\']*;?charset=(.+?)["\'>]', flags=re.I)
     xml_re = re.compile(r'^<\?xml.*?encoding=["\']*(.+?)["\'>]')
 
     declared_encodings = (charset_re.findall(page) +

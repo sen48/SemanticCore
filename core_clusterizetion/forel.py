@@ -14,13 +14,13 @@ def center_of_objects(pdist, neighbour_objects):
     return neighbour_objects[sum_d.argmin()]
 
 
-def forel(dist, R, n_tries=200):
+def forel(dist, radius, n_tries=200):
     """
     n_tries  раз запускается алгоритм ФОРЕЛ (FOREL) (Загоруйко Н. Г. Прикладные методы анализа данных и знаний.)
     На выходе результат попытки с наименьшей суммой внутриклассовых дисперсий.
     :type n_tries: число  раз запуска алгоритма.
     :param dist: матрица расстояний между объектами
-    :param R: радиус поиска локальных сгущений
+    :param radius: радиус поиска локальных сгущений
     :return: f_cluster[i] - номер кластера, к которому отнесен i-й объект.
             quality - сумма внутриклассовых дисперсий для разбиения f_cluster.
      """
@@ -30,7 +30,7 @@ def forel(dist, R, n_tries=200):
     quality = None
     f_centers = []
     for i in range(n_tries):
-        clusters, centers = forel_step(dist, R)
+        clusters, centers = forel_step(dist, radius)
         q = F(centers, clusters, dist)
         if not quality or q < quality:
             quality = q
@@ -39,25 +39,25 @@ def forel(dist, R, n_tries=200):
     return f_cluster, quality, f_centers
 
 
-def forel_for_skat(dist, R, n_tries=200):
+def forel_for_skat(dist, radius, n_tries=200):
 
     """
     То же что и forel, только дезультаты преобразованы результаты forel для skat
     """
-    f_cluster, quality, centers = forel(dist, R, n_tries)
+    f_cluster, quality, centers = forel(dist, radius, n_tries)
 
-    clusters = [[] for i in range(int(max(f_cluster)))]
-    for i, k in enumerate(f_cluster):
-        clusters[int(k)-1].append(i)
+    clusters = [[]] * int(max(f_cluster))
+    for i_q, k in enumerate(f_cluster):
+        clusters[int(k)-1].append(i_q)
 
     return clusters, centers
 
 
-def forel_step(dist, R):
+def forel_step(dist, radius):
     """
     алгоритм ФОРЕЛ (FOREL)
     :param dist: матрица расстояний между объектами
-    :param R:  радиус поиска локальных сгущений
+    :param radius:  радиус поиска локальных сгущений
     :return: clusters[i] - номер кластера, к которому отнесен i-й объект.
              centers[j] - номер объекта, являющегося центром j-го кластера.
     """
@@ -68,18 +68,19 @@ def forel_step(dist, R):
     while len(objects) > 0:
         # Берем произвольный некластеризованный объект
         current_object = objects[random.randint(0, len(objects) - 1)]
-        # массив объектов, расположенных на расстоянии <= R от текущего
-        neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < R and i in objects]
+        # массив объектов, расположенных на расстоянии <= radius от текущего
+        neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < radius and i in objects]
         # находим центр neighbour_objects
         center_object = center_of_objects(dist, neighbour_objects)
 
         while center_object != current_object:  # пока центр тяжести не стабилизируется
             current_object = center_object
-            neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < R and i in objects]
+            neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < radius and i in objects]
             center_object = center_of_objects(dist, neighbour_objects)
 
         # удаляем указанные объекты из выборки (мы их уже кластеризовали)
-        for i in neighbour_objects: objects.remove(i)
+        for i in neighbour_objects:
+            objects.remove(i)
 
         centers.append(center_object)
 
@@ -92,29 +93,29 @@ def forel_step(dist, R):
     return clusters, centers
 
 
-def skat(dist, R):
+def skat(dist, radius):
     """
     алгоритм СКАТ (Загоруйко Н. Г. Прикладные методы анализа данных и знаний.)
-    Сначала Вычисляются результаты таксономии  с помощью алгоритма FOREL при радиусе сферы, равном R.
+    Сначала Вычисляются результаты таксономии  с помощью алгоритма FOREL при радиусе сферы, равном radius.
     Далее процедуры таксономии повторяются с таким же радиусом сфер, но теперь в качестве начальных точек
     выбираются центры, полученные ранее, и формирование каждого нового таксона делается с участием всех  точек.
     В результате обнаруживаются неустойчивые таксоны, которые скатываются к таксонам-предшественникам.
     Решение выдается в виде перечня устойчивых таксонов и указания тех неустойчивых, которые к ним тяготеют.
     :param dist: матрица расстояний между объектами
-    :param R: радиус поиска локальных сгущений
+    :param radius: радиус поиска локальных сгущений
     """
 
-    perv_clusters, centers = forel_for_skat(dist, R)
+    perv_clusters, centers = forel_for_skat(dist, radius)
     objects = [i for i in range(dist.shape[0])]
     clusters = []
     for current_object in centers:
-        # массив объектов, расположенных на расстоянии <= R от текущего
-        neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < R and i in objects]
+        # массив объектов, расположенных на расстоянии <= radius от текущего
+        neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < radius and i in objects]
         # находим центр neighbour_objects
         center_object = center_of_objects(dist, neighbour_objects)
         while center_object != current_object:  # пока центр тяжести не стабилизируется
             current_object = center_object
-            neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < R and i in objects]
+            neighbour_objects = [i for i, d in enumerate(dist[current_object]) if d < radius and i in objects]
             center_object = center_of_objects(dist, neighbour_objects)
         # элементам списка fcluster, соответствующим объектам из neighbour_objects
         # присваеваем номер текущего класстера
@@ -123,7 +124,6 @@ def skat(dist, R):
 
 
 def F(centers, clusters, dist):
-
     """
     Сумма внутриклассовых дисперсий
     """

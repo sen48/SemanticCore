@@ -118,7 +118,7 @@ def print_clusters(fcls, queries, report_file, site=None):
     fcl_cols = ['cl_{}'.format(i) for i, f in enumerate(fcls)]
     columns = ['запрос']
     columns += fcl_cols
-    array = [[] for i in range(len(fcls) + 1)]
+    array = [[]] * (len(fcls) + 1)
     array[0] = [query.query for query in queries]
     array[1: 1 + len(fcls)] = fcls
     if site:

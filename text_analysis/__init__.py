@@ -109,6 +109,24 @@ def load_ruscorpra_frqs():
 CF = load_ruscorpra_frqs()
 
 
+def weird(freq_dist, num=50):
+    """
+    Возвращяет список, состоящий из num наиболее характерных терминов коллекции. Термин считается характерным,
+    если в коллекции он встречается часто, а в русском языке - нет. Степень характерности (weirdness) вычисляется как
+    отношение частоты в коллекции к частоте в русском языке.
+    :param freq_dist: nltk.FreqDist - частоты слов в коллекции
+    :param num: int, число результатов
+    :return: list of str
+    """
+    weirdness = {}
+    for w in freq_dist.keys():
+        if w == '':
+            continue
+        lang_freq = CF.prob(w)
+        weirdness[w] = freq_dist.get(w) / lang_freq
+    return sorted(weirdness.keys(), key=lambda k: weirdness[k], reverse=True)[:num]
+
+
 def collocations(sents):
     """
     Ищет колокации в тексте

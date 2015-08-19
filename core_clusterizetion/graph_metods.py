@@ -1,6 +1,6 @@
 import functools
-from scipy.spatial.distance import squareform, num_obs_y
 import numpy as np
+from scipy.spatial.distance import squareform, num_obs_y
 
 
 def condensed_to_square_index(n, c):

@@ -119,11 +119,11 @@ class SerpItem:
         return u + t + s
 
     def count_commercial_wp(self):
-        from content import WebPage
-        wp = WebPage(self.url)
+        from web_page_content import WebPageContent
+        wp = WebPageContent(self.url)
         return wp.count_commercial()
 
     def count_informational_wp(self):
-        from content import WebPage
-        wp = WebPage(self.url)
+        from web_page_content import WebPageContent
+        wp = WebPageContent(self.url)
         return wp.count_informational()

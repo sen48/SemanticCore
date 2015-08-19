@@ -1,8 +1,11 @@
+from string import punctuation
+
 import nltk
 import pymorphy2
-from string import punctuation
 from nltk.corpus import stopwords
+
 from bm_25 import rank
+
 
 punctuation += "«—»"  # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
 stop_words = stopwords.words('russian')
@@ -76,11 +79,6 @@ class ScoreCounter:
             tf = text_table.get_term_frequency(word)
             res += rank.score_bm25(1/self.get_df(word), tf, 10, text_table.length, len(self.DF))
         return res
-    #w_s = w_single(document, zone, terms, p_type)
-    #w_p = w_pair(document, zone, terms, p_type)
-    #w_a = w_all_words(document, zone, terms, p_type)
-    #w_ph = w_phrase(document, zone, query, p_type)
-    #w_h = w_half_phrase(document, zone, terms, idfs, p_type)
 
 if __name__ == '__main__':
     sc = ScoreCounter('C:\\_Work\\SemanticCore\\bm_25\\NKRL.csv')

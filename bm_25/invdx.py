@@ -1,11 +1,12 @@
 import math
-from string import punctuation
 import collections
-import pickle
+import re
+from string import punctuation
+
+import pymorphy2
 import nltk
 from nltk.corpus import stopwords
-import pymorphy2
-import re
+
 import text_analysis
 
 
@@ -46,7 +47,9 @@ def _get_term_list(text):
 
 
 def _get_par_from_tokens(tokens):
-    """Analyze tokens and return a list of token.tag"""
+    """Analyze tokens and return a list of token.tag
+    :param tokens: list of str
+    """
     # morph = pymorphy2.MorphAnalyzer()
     terms = []
     for tok in tokens:
@@ -123,8 +126,9 @@ class InvertedIndex:
     - таблицы длин документов коллекции
     """
     p_type = 'idf'
+    ZONE_COEFFICIENT = {'body': 1, 'title': 2, 'h1': 1.5}
 
-    def __init__(self, idfs='C:\\_Work\\SemanticCore\\bm_25\\NKRL.csv'):
+    def __init__(self):
         self.IDF = text_analysis.load_ruscorpra_frqs()
         self.index = dict()
         self.doc_lens = DocumentLengthTable()
@@ -147,15 +151,6 @@ class InvertedIndex:
         self.index[term].add(docid, zone, e)
         self.doc_lens.update(docid, zone)
 
-    def save(self, name):
-        with open('{}.pickle'.format(name), 'wb') as f_out:
-            pickle.dump(self, f_out)
-
-    @staticmethod
-    def load(name):
-        with open('{}.pickle'.format(name), 'rb') as fin:
-            return InvertedIndex(pickle.load(fin))
-
     def get_document_frequency(self, word, docid):
         """
         количество вхождений слова в документ
@@ -177,15 +172,32 @@ class InvertedIndex:
         """
         return self.IDF.prob(word)
 
-    def score(self, doc_id, zone, query):
+    def total_score(self, doc_id, query):
         """
         Считает значение показателя релевантности документа запросу по формулам из статьи
         «Алгоритм текстового ранжирования Яндекса» с РОМИП-2006
         http://download.yandex.ru/company/03_yandex.pdf
-        :param doc_id:
-        :param zone:
-        :param query:
-        :return:
+        :param doc_id: int
+        :param query: str
+        :return: float
+        """
+        res = 0
+        sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
+        for zone in ['body', 'title', 'h1']:
+            sc = self.score(doc_id, zone, query)
+            res += self.ZONE_COEFFICIENT[zone] * sc
+        print('------------------')
+        print('{0:<20}: {1: 3.2f}'.format('total', res))
+        print('==================')
+        return res
+
+    def score(self, doc_id, zone, query):
+        """
+        Считает значение показателя релевантности заданной зоны документа.
+        :param doc_id: int
+        :param zone: str
+        :param query:str
+        :return: float
         """
         k0 = 0.3
         k1 = 0.1
@@ -207,11 +219,11 @@ class InvertedIndex:
 
     def w_all_words(self, doc_id, zone, terms):
         """
-        Wallwords — вклад вхождения всех терминов (форма слова не важна) из запроса;
-        :param doc_id:
-        :param zone:
-        :param terms:
-        :return:
+        W_allwords — вклад вхождения всех терминов (форма слова не важна) из запроса;
+        :param doc_id: int
+        :param zone: str
+        :param terms: list of pymorphy2.analyzer.Parse
+        :return: float
         """
         n_miss = 0
         idfs = 0
@@ -229,10 +241,10 @@ class InvertedIndex:
     def w_phrase(self, doc_id, zone, terms):
         """
         Wphrase — вклад вхождения всего запроса (фразы), учитываются формы слов
-        :param doc_id:
-        :param zone:
-        :param terms:
-        :return:
+        :param doc_id: int
+        :param zone: str
+        :param terms: list of pymorphy2.analyzer.Parse
+        :return: float
         """
         tf = self.doc_length(doc_id, zone)
         for term in terms:
@@ -251,11 +263,11 @@ class InvertedIndex:
 
     def w_half_phrase(self, doc_id, zone, terms):
         """
-        Whalfphrase — вклад вхождения части запроса, учитываются формы слов
-        :param doc_id:
-        :param zone:
-        :param terms:
-        :return:
+        W_halfphrase — вклад вхождения части запроса, учитываются формы слов
+        :param doc_id: int
+        :param zone: str
+        :param terms: list of pymorphy2.analyzer.Parse
+        :return: float
         """
         tf = self.doc_length(doc_id, zone)
         counter = 0
@@ -273,26 +285,13 @@ class InvertedIndex:
             return 0
         return sum(self.log_p(term) for term in terms) * tf / (1 + tf)
 
-    ZONE_COEFFICIENT = {'body': 1, 'title': 2, 'h1': 1.5}
-
-    def total_score(self, doc_id, query):
-        res = 0
-        sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
-        for zone in ['body', 'title', 'h1']:
-            sc = self.score(doc_id, zone, query)
-            res += self.ZONE_COEFFICIENT[zone] * sc
-        print('------------------')
-        print('{0:<20}: {1: 3.2f}'.format('total', res))
-        print('==================')
-        return res
-
     def w_single(self, doc_id, zone, terms):
         """
         W_single — вклад отдельных слов из запроса;
-        :param doc_id:
-        :param zone:
-        :param terms:
-        :return:
+        :param doc_id: int
+        :param zone: str
+        :param terms: list of pymorphy2.analyzer.Parse
+        :return: float
         """
         terms = [t.normal_form for t in terms]
         res = 0
@@ -313,11 +312,11 @@ class InvertedIndex:
 
     def w_pair(self, doc_id, zone, terms):
         """
-        Wpair — вклад пар слов;
-        :param doc_id:
-        :param zone:
-        :param terms:
-        :return:
+        W_pair — вклад пар слов;
+        :param doc_id: int
+        :param zone: str
+        :param terms: list of pymorphy2.analyzer.Parse
+        :return: float
         """
         terms = [t.normal_form for t in terms]
         if len(terms) < 2:
@@ -471,16 +470,15 @@ if __name__ == '__main__':
         """
         from text_analysis import Readable
         import search_engine_tk.ya_query as sps
-        from content import WebPage
+        from web_page_content import WebPageContent
 
         readable_s = []
         for q in sps.queries_from_file(f_name, 213):
             print(q.query)
             for u in q.get_urls(top=10):
-                w = WebPage(u).html()
+                w = WebPageContent(u).html()
                 readable_s.append(Readable(w))
         return readable_s
-
 
     indx = build_idx(readables_by_queries_file(f_name='C:\\_Work\\vostok\\2.txt'))
     for i in indx.doc_ids():

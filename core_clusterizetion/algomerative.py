@@ -1,6 +1,6 @@
 import scipy.cluster.hierarchy as sch
-from scipy.spatial.distance import pdist
 import core_clusterizetion.core_cluster as core_cluster
+from scipy.spatial.distance import pdist
 
 
 class AlgomerativeClusterizationException(Exception):
@@ -101,14 +101,15 @@ if __name__ == "__main__":
         queries = queries_from_file(semcorefile, region)
 
         metrics = lambda u, v: 1 - sum([int(i in v) for i in u]) / num_res
-
+        print('reading SERPs')
         serps = [query.get_serp(num_res) for query in queries]
+        print(' done')
 
         ids = [[item.url_id for item in s] for i, s in enumerate(serps)]
         dist = pdist([i for i in ids], metrics)
 
         z = sch.linkage(dist, method='average', metric=metrics)
-        print('linkage OK')
+        print('Linkage OK')
 
         fcl0 = fcluster(z, 0.95)
         fcl1 = fcluster(z, 0.9)

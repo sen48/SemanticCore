@@ -112,5 +112,5 @@ def get_body(doc):
         #BeautifulSoup(cleaned) #FIXME do we really need to try loading it?
         return cleaned
     except Exception: #FIXME find the equivalent lxml error
-        #logging.error("cleansing broke html content: %s\n---------\n%s" % (raw_html, cleaned))
+        #logging.error("cleansing broke html web_page_content: %s\n---------\n%s" % (raw_html, cleaned))
         return raw_html

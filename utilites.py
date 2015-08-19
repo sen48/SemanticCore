@@ -31,3 +31,7 @@ def split_duration(current_conversion_rate, delta, number_of_variations, visitor
     else:
         print(str(result) + " day")
     return result
+
+import pydoc
+import bm_25.invdx
+pydoc.doc(bm_25.invdx)

@@ -24,7 +24,7 @@ log = logging.getLogger()
 REGEXES = {
     'unlikelyCandidatesRe': re.compile('combx|comment|community|disqus|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter', re.I),
     'okMaybeItsACandidateRe': re.compile('and|article|body|column|main|shadow', re.I),
-    'positiveRe': re.compile('article|body|content|entry|hentry|main|page|pagination|post|text|blog|story', re.I),
+    'positiveRe': re.compile('article|body|web_page_content|entry|hentry|main|page|pagination|post|text|blog|story', re.I),
     'negativeRe': re.compile('combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget', re.I),
     'divToPElementsRe': re.compile('<(a|blockquote|dl|div|img|ol|p|pre|table|ul)', re.I),
     #'replaceBrsRe': re.compile('(<br[^>]*>[ \n\r\t]*){2,}',re.I),
@@ -95,7 +95,7 @@ class Document:
     def __init__(self, input, positive_keywords=None, negative_keywords=None, **options):
         """Generate the document
 
-        :param input: string of the html content.
+        :param input: string of the html web_page_content.
 
         kwargs:
             - attributes:
@@ -202,8 +202,8 @@ class Document:
 
     def get_article(self, candidates, best_candidate, html_partial=False):
         # Now that we have the top candidate, look through its siblings for
-        # content that might also be related.
-        # Things like preambles, content split by ads that we removed, etc.
+        # web_page_content that might also be related.
+        # Things like preambles, web_page_content split by ads that we removed, etc.
         sibling_score_threshold = max([
             10,
             best_candidate['content_score'] * 0.2])
@@ -312,7 +312,7 @@ class Document:
             if grand_parent_node is not None:
                 candidates[grand_parent_node]['content_score'] += content_score / 2.0
 
-        # Scale the final candidates score based on link density. Good content
+        # Scale the final candidates score based on link density. Good web_page_content
         # should have a relatively small link density (5% or less) and be
         # mostly unaffected by this operation.
         for elem in ordered:
@@ -436,7 +436,7 @@ class Document:
 
         for elem in self.tags(node, "iframe"):
             if "src" in elem.attrib and REGEXES["videoRe"].search(elem.attrib["src"]):
-                elem.text = "VIDEO" # ADD content to iframe text node to force <iframe></iframe> proper output
+                elem.text = "VIDEO" # ADD web_page_content to iframe text node to force <iframe></iframe> proper output
             else:
                 elem.drop_tree()
 
@@ -494,7 +494,7 @@ class Document:
                     reason = "less than 3x <p>s than <input>s"
                     to_remove = True
                 elif content_length < (MIN_LEN) and (counts["img"] == 0 or counts["img"] > 2):
-                    reason = "too short content length %s without a single image" % content_length
+                    reason = "too short web_page_content length %s without a single image" % content_length
                     to_remove = True
                 elif weight < 25 and link_density > 0.2:
                         reason = "too many links %.3f for its weight %s" % (
@@ -505,7 +505,7 @@ class Document:
                         link_density, weight)
                     to_remove = True
                 elif (counts["embed"] == 1 and content_length < 75) or counts["embed"] > 1:
-                    reason = "<embed>s with too short content length, or too many <embed>s"
+                    reason = "<embed>s with too short web_page_content length, or too many <embed>s"
                     to_remove = True
 #                if el.tag == 'div' and counts['img'] >= 1 and to_remove:
 #                    imgs = el.findall('.//img')

@@ -25,7 +25,7 @@ stop_words.extend(['это', 'дата', 'смочь', 'хороший', 'нуж
 morth = pymorphy2.MorphAnalyzer()
 
 
-class WebPage:
+class WebPageContent:
     PRICE_PATTERN = re.compile(r'''[\d]{1,3}(?:(?:[\s]|[&]nbsp[;]|[,])*[\d]{3})*'''
                                r'''(?:[.,](?:[\d][\d]|[-–]))?(?:[\s]|[&]nbsp[;])?'''
                                r'''(?:руб[.]?|[$]|USD|EUR|RUB|р[.])?''')
@@ -155,7 +155,7 @@ class WebPage:
         Возвращяет содержимое мета-тега "description", если его нет, возвращяет строку 'no-description'
         """
         try:
-            p = self.doc.select('//meta[@name="description"]').node().get('content')
+            p = self.doc.select('//meta[@name="description"]').node().get('web_page_content')
             return p
         except grab.error.DataNotFound:
             return 'no-description'
@@ -183,7 +183,7 @@ class WebPage:
 
     def text_len(self):
         """
-        Длина содержательного текста
+        Длина содержательного текста в символах
         """
         return len(self.text())
 
@@ -687,14 +687,14 @@ if __name__ == '__main__':
         for s_item in serp_items:
             print(s_item.url)
             try:
-                pgs.append(WebPage(s_item.url))
+                pgs.append(WebPageContent(s_item.url))
             except grab.error.GrabTooManyRedirectsError:
                 continue
 
         pos, serp_item = wrs.read_url_position('vostok.ru', query, 213)
         print(pos)
         print(serp_item.url)
-        pg = WebPage(serp_item.url)
+        pg = WebPageContent(serp_item.url)
 
         print([p.text_len() for p in pgs])
         print(pg.text_len())

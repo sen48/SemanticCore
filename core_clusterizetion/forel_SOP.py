@@ -1,9 +1,10 @@
 from scipy.spatial.distance import pdist
+import numpy as np
+
 import core_clusterizetion.forel as forel
 import core_clusterizetion.graph_metods as gr
-from search_engine_tk.ya_query import queries_from_file
 import core_clusterizetion.core_cluster as core_cluster
-import numpy as np
+from search_engine_tk.ya_query import queries_from_file
 
 
 def forel_shotest_open_path(dist, Rforel, Rsop):
