@@ -125,7 +125,7 @@ class InvertedIndex:
     - словаря с частотами терминов в русском языке
     - таблицы длин документов коллекции
     """
-    
+
     p_type = 'idf'
     ZONE_COEFFICIENT = {'body': 1, 'title': 2, 'h1': 1.5}
 

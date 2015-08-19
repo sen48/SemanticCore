@@ -41,6 +41,7 @@ class WebPageContent:
         """
         Возвращает тИЦ страницы. Использовать с осторожностью, могут забанить ip
         """
+    
         yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
 
         f = urllib.urlopen(yurl)

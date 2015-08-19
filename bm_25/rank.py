@@ -1,4 +1,4 @@
-from math import log
+from math import log, exp
 
 k1 = 2
 b = 0.75
