@@ -1,3 +1,8 @@
+"""
+На данный момент, реализован только один графофый метод кластеризации - это
+Алгоритм кратчайшего незамкнутого пути (КНП)
+"""
+
 import functools
 import numpy as np
 from scipy.spatial.distance import squareform, num_obs_y

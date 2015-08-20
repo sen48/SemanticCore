@@ -1,8 +1,41 @@
+"""
+В модуле собрано несколько функций. нужных для работы с результатами кластеризации, независимо от метода кластеризации
+
+F0(Среднее внутриклассовое расстояние) и F1(Среднее межклассовое расстояние) - это метрики качества кластеризации.
+
+"""
+
 import numpy as np
 from scipy.spatial.distance import squareform
 
 
-square_pdist = lambda pdist: squareform(pdist) if pdist.ndim == 1 else pdist
+def square_pdist(pdist):
+    """
+    Независимо от того в какой форме передана матрица расстояний, возвращяет ее в квадратной форме.
+    :param pdist:
+    :return:
+    """
+    return squareform(pdist) if pdist.ndim == 1 else pdist
+
+
+def get_queries_vectors(ya_queries, num_res, is_euclid):
+    # Собираем id URLов ТОП{num_res} для всех запросов из списка ya_queries. Другими словами, кадному запросу ставим в
+    # соответствие вектор длиной num_res, состоящий из натуральных чисел равных id URLов.
+    vectors = [query.get_url_ids(num_res) for query in ya_queries]
+
+    # Так как методы 'ward', 'centroid', 'median' можно использовать только с евклидовым расстоянием, нам нужно
+    # изменить структуру векторов запросов, чтобы евклидово расстояние имело смысл. Для этого пронумеруем
+    # всевозможные урлы, встречающиеся в выдачах по заданным запросам.
+    # Если i-й запрос есть в выдаче по запросу q, то в векторе, соответствующем запросу q на i-м месте стоит 1,
+    # иначе  - 0.
+    # Евклидово расстояние между двумя такими векторами совпадает с числом 2*(num_res - k),
+    # где k - число URLов, присутствующих в обеих выдачах.
+
+    if is_euclid:
+        all_url_ids = _get_space_basis(vectors)  # - список всех различных id, встресающихся в serps
+        vectors = [[[(url_id in serp) for url_id in all_url_ids]] for serp in vectors]
+
+    return vectors
 
 
 def _get_space_basis(serps):
@@ -31,33 +64,13 @@ def cluster_dist(first_cluster, second_cluster, dist):
     return min(dist[c1][c2] for c1 in first_cluster for c2 in second_cluster)
 
 
-def get_queries_vectors(ya_queries, num_res, is_euclid):
-    # Собираем id URLов ТОП{num_res} для всех запросов из списка ya_queries. Другими словами, кадному запросу ставим в
-    # соответствие вектор длиной num_res, состоящий из натуральных чисел равных id URLов.
-    vectors = [query.get_url_ids(num_res) for query in ya_queries]
-
-    # Так как методы 'ward', 'centroid', 'median' можно использовать только с евклидовым расстоянием, нам нужно
-    # изменить структуру векторов запросов, чтобы евклидово расстояние имело смысл. Для этого пронумеруем
-    # всевозможные урлы, встречающиеся в выдачах по заданным запросам.
-    # Если i-й запрос есть в выдаче по запросу q, то в векторе, соответствующем запросу q на i-м месте стоит 1,
-    # иначе  - 0.
-    # Евклидово расстояние между двумя такими векторами совпадает с числом 2*(num_res - k),
-    # где k - число URLов, присутствующих в обеих выдачах.
-
-    if is_euclid:
-        all_url_ids = _get_space_basis(vectors)  # - список всех различных id, встресающихся в serps
-        vectors = [[[(url_id in serp) for url_id in all_url_ids]] for serp in vectors]
-
-    return vectors
-
-
 class ClusterException(Exception):
     pass
 
 
 def F0(f_cluster, dist):
     """
-    Среднее внутриклассовое расстояние
+    Среднее внутриклассовое расстояние. Хорошо, когда оно маленькое.
     """
     N = dist.shape[0]
     if N != len(f_cluster):
@@ -69,7 +82,7 @@ def F0(f_cluster, dist):
 
 def F1(f_cluster, dist):
     """
-    Среднее межклассовое расстояние
+    Среднее межклассовое расстояние. Хорошо, когда оно большое.
     """
     N = dist.shape[0]
     if N != len(f_cluster):

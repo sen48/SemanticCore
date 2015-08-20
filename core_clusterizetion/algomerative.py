@@ -1,3 +1,12 @@
+"""
+Иерархическая (алгомеративная) кластеризация семантического ядра.
+
+queries_linkage вычисляет матрицу объединений (linkage matrix), а
+fcluster формирует по ней кластеры
+
+
+"""
+
 import scipy.cluster.hierarchy as sch
 import core_clusterizetion.core_cluster as core_cluster
 from scipy.spatial.distance import pdist
@@ -10,20 +19,16 @@ class AlgomerativeClusterizationException(Exception):
 def fcluster(z, level):
     """
 
-    Forms flat clusters from the hierarchical clustering defined by
-    the linkage matrix ``Z``.
+    Формирует кластеры, по матрице объединений Z.
 
-    Parameters
-    ----------
-    Z : ndarray
-        Иерархическая кластеризация представленная в виде linkage matrix, полученная в результате применения функции
-        `queries_linkage`.
-    level : float
+    :Z : ndarray
+        Иерархическая кластеризация представленная в виде матрицы объединений, полученная в результате применения
+        функции queries_linkage.
+    :level : float
         Доля от максимального расстояния между кластерами. maxdist * level - пороговое значение расстояния, то есть
         если расстояние между кластерами больше этого значения, то дальше кластеры не объединяются.
-    Returns
     -------
-    fcluster : ndarray
+    :return : ndarray
         Массив длины равной количеству кластеризуемых запросов. i - й элемент этого списка равен номеру класстера,
         к которому отнесен i - й запрос. Класстеры пронумерованы в порядке убывания количества запросов.
     """
@@ -39,7 +44,7 @@ def _get_linkage(x, method, metric):
 
 def queries_linkage(ya_queries, num_res, method, metrics):
     """
-    Функция возвращяет матрицу 'Z' (linkage matrix), число строк которой равно len(queries)-1, а число столбцов 4.
+    Функция строит матрицу 'Z' (матрицу объединений), число строк которой равно len(queries)-1, а число столбцов 4.
     На i`-ой итерации кластеры с номерами Z[i, 0] и Z[i, 1] объединяются в кластер с индексом n + i.
     Кластер с номером j, меньшим len(queries) соответствует запросу queries[j].
     Расстояние между кластерами Z[i, 0] и Z[i, 1] равно Z[i, 2]``.
@@ -81,14 +86,13 @@ def queries_linkage(ya_queries, num_res, method, metrics):
     Returns
     -------
     Z : ndarray
-        Иерархическая кластеризация представленная в виде linkage matrix.
+        Иерархическая кластеризация представленная в виде матрицы объединений.
     """
 
     if method in ('ward', 'centroid', 'median'):
         if metrics != 'euclidian':
             raise AlgomerativeClusterizationException('Метод {} можно использовать '
                                                       'только с евклидовым расстоянием'.format(method))
-
     vectors = core_cluster.get_queries_vectors(ya_queries, num_res, method in ('ward', 'centroid', 'median'))
     return _get_linkage(vectors, method, metrics)
 

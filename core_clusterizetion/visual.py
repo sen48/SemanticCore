@@ -1,3 +1,7 @@
+"""
+Отсюда используется только plot_dendrogram
+"""
+
 import random
 
 import networkx as nx

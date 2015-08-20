@@ -1,3 +1,8 @@
+"""
+Алгоритмы кластеризации ФОРЕЛ и СКАТ. О данных методах моэно почитать, например, в
+Загоруйко Н. Г. Прикладные методы анализа данных и знаний.
+"""
+
 import random
 import numpy as np
 import core_clusterizetion.core_cluster as cc
@@ -14,9 +19,9 @@ def center_of_objects(pdist, neighbour_objects):
     return neighbour_objects[sum_d.argmin()]
 
 
-def forel(dist, radius, n_tries=200):
+def n_times_forel(dist, radius, n_tries=200):
     """
-    n_tries  раз запускается алгоритм ФОРЕЛ (FOREL) (Загоруйко Н. Г. Прикладные методы анализа данных и знаний.)
+    n_tries  раз запускается алгоритм ФОРЕЛ (FOREL)
     На выходе результат попытки с наименьшей суммой внутриклассовых дисперсий.
     :type n_tries: число  раз запуска алгоритма.
     :param dist: матрица расстояний между объектами
@@ -30,7 +35,7 @@ def forel(dist, radius, n_tries=200):
     quality = None
     f_centers = []
     for i in range(n_tries):
-        clusters, centers = forel_step(dist, radius)
+        clusters, centers = forel(dist, radius)
         q = F(centers, clusters, dist)
         if not quality or q < quality:
             quality = q
@@ -40,11 +45,10 @@ def forel(dist, radius, n_tries=200):
 
 
 def forel_for_skat(dist, radius, n_tries=200):
-
     """
-    То же что и forel, только дезультаты преобразованы результаты forel для skat
+    То же что и forel, только результаты преобразованы для skat
     """
-    f_cluster, quality, centers = forel(dist, radius, n_tries)
+    f_cluster, quality, centers = n_times_forel(dist, radius, n_tries)
 
     clusters = [[]] * int(max(f_cluster))
     for i_q, k in enumerate(f_cluster):
@@ -53,7 +57,7 @@ def forel_for_skat(dist, radius, n_tries=200):
     return clusters, centers
 
 
-def forel_step(dist, radius):
+def forel(dist, radius):
     """
     алгоритм ФОРЕЛ (FOREL)
     :param dist: матрица расстояний между объектами
@@ -95,7 +99,7 @@ def forel_step(dist, radius):
 
 def skat(dist, radius):
     """
-    алгоритм СКАТ (Загоруйко Н. Г. Прикладные методы анализа данных и знаний.)
+    алгоритм СКАТ
     Сначала Вычисляются результаты таксономии  с помощью алгоритма FOREL при радиусе сферы, равном radius.
     Далее процедуры таксономии повторяются с таким же радиусом сфер, но теперь в качестве начальных точек
     выбираются центры, полученные ранее, и формирование каждого нового таксона делается с участием всех  точек.
@@ -125,7 +129,7 @@ def skat(dist, radius):
 
 def F(centers, clusters, dist):
     """
-    Сумма внутриклассовых дисперсий
+    Сумма внутриклассовых расстояний до центра. Мера качества разбиения. Стремимся уменьшить.
     """
     return sum(
         sum(dist[c][o[0]] for o in filter(lambda x: x[1] == j+1, enumerate(clusters)))
