@@ -1,3 +1,7 @@
+"""
+Вычисление классического значения Okapi bm25
+"""
+
 from math import log, exp
 
 k1 = 2

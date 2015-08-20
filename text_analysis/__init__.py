@@ -45,16 +45,18 @@ class Readable(read.Document):
 
     def h1(self):
         """
-
-
-        :return: list of h1 texts
+        :return: str, concatenation of h1 texts
         """
-        return self._get_tag('h1')[0]
+        return ' '.join(self._get_tag('h1'))
 
     def get_all_h2(self):
         return self._get_tag('h2')
 
-    def get_zone(self, zone):
+    def get_zone_text(self, zone):
+        """
+        :param zone: str
+        :return: str
+        """
         if zone == 'body':
             return self.text()
         elif zone == 'title':
@@ -62,11 +64,7 @@ class Readable(read.Document):
         elif zone == 'h1':
             return self.h1()
         else:
-            return self._get_tag(zone)[0]
-
-
-class HttpCodeException(Exception):
-    pass
+            return ' '.join(self._get_tag(zone))
 
 
 def get_alts(response):
@@ -74,9 +72,9 @@ def get_alts(response):
     return alts
 
 
-def load_ruscorpra_frqs():
+def load_ruscorpra_probabilities():
     """
-    Возвращает частоты (вероятности) слов в русском языке из НКРЯ в виде nltk.ELEProbDist
+    Возвращает вероятности (относительные частоты) слов в русском языке из НКРЯ в виде nltk.ELEProbDist
     (это для сглаживания, т.е чтобы не было нулей),
     которые находятся в файле 1grams.txt
     Чтобы каждый раз не разбирать, маринуется в CF.pickled
@@ -106,7 +104,7 @@ def load_ruscorpra_frqs():
             print(ex)
     return nltk.ELEProbDist(nltk.FreqDist(cf))
 
-CF = load_ruscorpra_frqs()
+CF = load_ruscorpra_probabilities()
 
 
 def weird(freq_dist, num=50):

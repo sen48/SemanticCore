@@ -1,3 +1,8 @@
+"""
+Строит обратный индекс коллекции текстов и считает значение показателя релевантности документа запросу по формулам из
+статьи «Алгоритм текстового ранжирования Яндекса» с РОМИП-2006. http://download.yandex.ru/company/03_yandex.pdf
+"""
+
 import math
 import collections
 import re
@@ -28,44 +33,26 @@ def _clear_term(term):
     return term
 
 
-def _get_terms_from_tokens(tokens):
-    pre_terms = [morph.parse(tok)[0].normal_form for tok in tokens]
-    terms = []
-    for term in pre_terms:
-        if term in punctuation or term.isnumeric() or len(term) <= 1:
-            continue
-        term = _clear_term(term)
-        if term not in stop_words and len(term) > 1:
-            terms.append(term)
-    return terms
-
-
-def _get_term_list(text):
-    if isinstance(text, list):
-        text = ' '.join(text)
-    return _get_terms_from_tokens(nltk.word_tokenize(text))
-
-
-def _get_par_from_tokens(tokens):
-    """Analyze tokens and return a list of token.tag
-    :param tokens: list of str
+def _get_pars_from_tokens(tokens):
     """
-    # morph = pymorphy2.MorphAnalyzer()
-    terms = []
-    for tok in tokens:
-        tok = _clear_term(tok)
-        pr = morph.parse(tok)[0]
-        term = pr.normal_form
-        if term in punctuation or term.isnumeric() or len(term) <= 1 or term in stop_words:
-            continue
-        terms.append(pr)
-    return terms
+    По списку слов возвращает список терминов, удаляя стоп-слова и знаки препинания
+
+    :param tokens: list of str
+    :return : list of pymorphy2.analyzer.Parse
+    """
+    pre_pars = [morph.parse(_clear_term(tok))[0] for tok in tokens]
+    pars = []
+    for par in pre_pars:
+        term = par.normal_form
+        if term not in punctuation and len(term) > 1 and term not in stop_words:
+            pars.append(par)
+    return pars
 
 
 def _get_par_list(text):
     if isinstance(text, list):
         text = ' '.join(text)
-    return _get_par_from_tokens(nltk.word_tokenize(text))
+    return _get_pars_from_tokens(nltk.word_tokenize(text))
 
 
 class Entry:
@@ -88,7 +75,7 @@ class PostingList:
     данного термина в соответствующую зону соответствующего документа}. Зонами могут быть title, h1, body и т.д.
     """
     def __init__(self):
-        self.posting_list = collections.defaultdict(lambda: collections.defaultdict(list()))
+        self.posting_list = collections.defaultdict(lambda: collections.defaultdict(lambda: list()))
 
     def __contains__(self, item):
         return item in self.posting_list
@@ -97,24 +84,16 @@ class PostingList:
         return self.posting_list[doc_id]
 
     def add(self, doc_id, zone, entry):
-        if doc_id not in self.posting_list:
-            self.posting_list[doc_id] = dict()
-        if zone not in self.posting_list[doc_id]:
-            self.posting_list[doc_id][zone] = list()
-        self.posting_list[doc_id][zone].append(entry)
+        self[doc_id][zone].append(entry)
 
     def tf(self, doc_id, zone):
-        if doc_id not in self.posting_list:
-            return 0
-        if zone not in self.posting_list[doc_id]:
-            return 0
+        """
+        Возвращает число вхождений термина, для которого создан постинглист в соответствующую зону документа с id
+        равным doc_id
+        """
         return len(self.posting_list[doc_id][zone])
 
     def entries(self, doc_id, zone):
-        if doc_id not in self.posting_list:
-            return []
-        if zone not in self.posting_list[doc_id]:
-            return []
         return self.posting_list[doc_id][zone]
 
 
@@ -130,8 +109,8 @@ class InvertedIndex:
     ZONE_COEFFICIENT = {'body': 1, 'title': 2, 'h1': 1.5}
 
     def __init__(self):
-        self.IDF = text_analysis.load_ruscorpra_frqs()
-        self.index = dict()
+        self.IDF = text_analysis.load_ruscorpra_probabilities()
+        self.index = collections.defaultdict(lambda: PostingList())
         self.doc_lens = DocumentLengthTable()
 
     def doc_ids(self):
@@ -147,8 +126,6 @@ class InvertedIndex:
         return self.doc_lens.get_length(docid, zone)
 
     def add(self, term, docid, zone, e):
-        if term not in self.index:
-            self.index[term] = PostingList()
         self.index[term].add(docid, zone, e)
         self.doc_lens.update(docid, zone)
 
@@ -182,8 +159,9 @@ class InvertedIndex:
         :param query: str
         :return: float
         """
+
         res = 0
-        sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
+        #sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
         for zone in ['body', 'title', 'h1']:
             sc = self.score(doc_id, zone, query)
             res += self.ZONE_COEFFICIENT[zone] * sc
@@ -204,87 +182,84 @@ class InvertedIndex:
         k1 = 0.1
         k2 = 0.2
         k3 = 0.02
-        terms = _get_par_list(query)
+        pars = _get_par_list(query)
 
-        if len(terms) == 1:
-            return self.w_single(doc_id, zone, terms)
-        w_s = self.w_single(doc_id, zone, terms)
-        w_p = self.w_pair(doc_id, zone, terms)
-        w_a = self.w_all_words(doc_id, zone, terms)
-        w_ph = self.w_phrase(doc_id, zone, terms)
-        w_h = self.w_half_phrase(doc_id, zone, terms)
+        if len(pars) == 1:
+            return self.w_single(doc_id, zone, pars)
+        w_s = self.w_single(doc_id, zone, pars)
+        w_p = self.w_pair(doc_id, zone, pars)
+        w_a = self.w_all_words(doc_id, zone, pars)
+        w_ph = self.w_phrase(doc_id, zone, pars)
+        w_h = self.w_half_phrase(doc_id, zone, pars)
         res = w_s + k0 * w_p + k1 * w_a + k2 * w_ph + k3 * w_h
         print('{7:<20} {0: 3d}: {1: 3.2f} = {2: 3.2f} + k0 * {3: 3.2f} + k1 * {4: 3.2f} + k2 * {5: 3.2f}'
               ' + k3 * {6: 3.2f}'.format(doc_id, res, w_s, w_p, w_a, w_ph, w_h, zone))
         return res
 
-    def w_all_words(self, doc_id, zone, terms):
+    def w_all_words(self, doc_id, zone, pars):
         """
         W_allwords — вклад вхождения всех терминов (форма слова не важна) из запроса;
         :param doc_id: int
         :param zone: str
-        :param terms: list of pymorphy2.analyzer.Parse
+        :param pars: list of pymorphy2.analyzer.Parse
         :return: float
         """
         n_miss = 0
         idfs = 0
-        for term in terms:
-            if term.normal_form not in self \
-                    or doc_id not in self[term.normal_form] \
-                    or zone not in self[term.normal_form][doc_id]:
+        for par in pars:
+            if par.normal_form not in self \
+                    or doc_id not in self[par.normal_form] \
+                    or zone not in self[par.normal_form][doc_id]:
                 n_miss += 1
             else:
-                for e in self[term.normal_form][doc_id][zone]:
-                    if e.props == term.tag:
-                        idfs += self.log_p(term.normal_form)
+                for e in self[par.normal_form][doc_id][zone]:
+                    if e.props == par.tag:
+                        idfs += self.log_p(par.normal_form)
         return idfs * 0.03 ** n_miss
 
-    def w_phrase(self, doc_id, zone, terms):
+    def w_phrase(self, doc_id, zone, pars):
         """
         Wphrase — вклад вхождения всего запроса (фразы), учитываются формы слов
+        TF — число вхождений запроса целиком.
+        Считаем сколько раз встречается в тексте самое редкое для данного текста слово запроса.
         :param doc_id: int
         :param zone: str
-        :param terms: list of pymorphy2.analyzer.Parse
+        :param pars: list of pymorphy2.analyzer.Parse
         :return: float
         """
         tf = self.doc_length(doc_id, zone)
-        for term in terms:
-            if term.normal_form not in self \
-                    or doc_id not in self[term.normal_form] \
-                    or zone not in self[term.normal_form][doc_id]:
-                continue
-
-            for e in self[term.normal_form][doc_id][zone]:
-                if e.props == term.tag:
-                    tf = min(tf, len(self[term.normal_form][doc_id][zone]))
-        if tf == 0:
-            return tf
-        idfs = sum(self.log_p(term) for term in terms)
+        for par in pars:
+            term = par.normal_form
+            if self[term].tf(doc_id, zone) == 0:
+                return 0
+            for entry in self[term][doc_id][zone]:
+                if entry.props == par.tag:
+                    tf = min(tf, self[term].tf(doc_id, zone))
+        idfs = sum(self.log_p(par.normal_form) for par in pars)
         return idfs * tf / (1 + tf)
 
-    def w_half_phrase(self, doc_id, zone, terms):
+    def w_half_phrase(self, doc_id, zone, pars):
         """
         W_halfphrase — вклад вхождения части запроса, учитываются формы слов
+        TF — число вхождений большей половины слов запроса.
         :param doc_id: int
         :param zone: str
-        :param terms: list of pymorphy2.analyzer.Parse
+        :param pars: list of pymorphy2.analyzer.Parse
         :return: float
         """
-        tf = self.doc_length(doc_id, zone)
-        counter = 0
-        for term in terms:
-            if term.normal_form not in self \
-                    or doc_id not in self[term.normal_form] \
-                    or zone not in self[term.normal_form][doc_id]:
-                continue
+        tfs = collections.defaultdict(lambda: 0)
+        for par in pars:
+            term = par.normal_form
+            for entry in self[term][doc_id][zone]:
+                if entry.props == par.tag:
+                    tfs[par] += 1
 
-            for e in self[term.normal_form][doc_id][zone]:
-                if e.props == term.tag:
-                    tf = min(tf, len(self[term.normal_form][doc_id][zone]))
-                    counter += tf > 0
-        if 2 * counter < len(terms):
+        non_zero_tfs = sorted(list(filter(lambda u: u[1] > 0, tfs.items())), key=lambda u: u[1], reverse=True)
+        counter = len(non_zero_tfs)
+        if 2 * counter < len(pars):
             return 0
-        return sum(self.log_p(term) for term in terms) * tf / (1 + tf)
+        tf = non_zero_tfs[round(len(pars)/2)-1][1]
+        return sum(self.log_p(par.normal_form) for par, v in non_zero_tfs) * tf / (1 + tf)
 
     def w_single(self, doc_id, zone, terms):
         """
@@ -311,15 +286,15 @@ class InvertedIndex:
             return []
         return [e.position for e in self.index[term].entries(doc_id, zone)]
 
-    def w_pair(self, doc_id, zone, terms):
+    def w_pair(self, doc_id, zone, pars):
         """
         W_pair — вклад пар слов;
         :param doc_id: int
         :param zone: str
-        :param terms: list of pymorphy2.analyzer.Parse
+        :param pars: list of pymorphy2.analyzer.Parse
         :return: float
         """
-        terms = [t.normal_form for t in terms]
+        terms = [t.normal_form for t in pars]
         if len(terms) < 2:
             return 0
         j = 0
@@ -332,8 +307,9 @@ class InvertedIndex:
         while j + 2 < len(terms):
             s2 = self.log_p(terms[2])
             positions2 = self._positions(doc_id, zone, terms[j + 2])
-            tf = double_tf(positions0, positions1)
-            tf_spec = double_spec_tf(positions0, positions2)
+            tf = pair_tf(positions0, positions1)
+            tf_spec = pair_spec_tf(positions0, positions2)
+
             summat += (s0 + s1) * tf / (1 + tf)
             summat += (s0 + s2) * tf_spec / (1 + tf_spec)
             j += 1
@@ -342,7 +318,7 @@ class InvertedIndex:
             s0 = s1
             s1 = s2
 
-        tf = double_tf(positions0, positions1)
+        tf = pair_tf(positions0, positions1)
         summat += (s0 + s1) * tf / (1 + tf)
         return summat
 
@@ -356,7 +332,13 @@ class InvertedIndex:
         return abs(math.log(p))
 
 
-def double_tf(positions0, positions1):
+def pair_tf(positions0, positions1):
+    """
+    TF — количество вхождений пары слов, с учетом весов. Пара учитывается, когда слова запроса встречаются в тексте
+    подряд (+1),
+    через слово (+0.5) или
+    в обратном порядке (+0.5).
+    """
     tf = 0
     for p1 in positions0:
         if p1 + 1 in positions1:
@@ -368,7 +350,11 @@ def double_tf(positions0, positions1):
     return tf
 
 
-def double_spec_tf(positions0, positions2):
+def pair_spec_tf(positions0, positions2):
+    """
+    Количество вхождений пары слов специальный случай, когда слова, идущие в запросе через одно,
+    в тексте встречаются подряд (+0.1).
+    """
     tf = 0
     for p1 in positions0:
         if p1 + 1 in positions2:
@@ -377,46 +363,51 @@ def double_spec_tf(positions0, positions2):
 
 
 class DocumentLengthTable:
+    """
+    Таблица длин документов коллекции (в словах). Состоит из словаря, ключами которого выступают idшники документов, а
+    значениями - опять словари. Ключами внутренних словарей являются зоны соответствующего документа, а значениями -
+    количества слов в тексте соответствующей зоны.
+    """
+
     def __init__(self):
-        self.table = dict()
-
-    def __contains__(self, item):
-        return item in dict
-
-    def __len__(self):
-        return len(self.table)
+        self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: 0))
 
     def doc_ids(self):
+        """
+        Возвращяет idшники документов, длины которых содержатся в таблице
+        :return: a set-like object
+        """
         return self.table.keys()
 
-    def add(self, docid, length):
-        self.table[docid] = dict()
-        self.table[docid]['body'] = length
-
     def update(self, docid, zone):
-        if docid not in self.table:
-            self.table[docid] = dict()
-        if zone not in self.table[docid]:
-            self.table[docid][zone] = 0
+        """
+        Слова их документа в индекс добавляются по очереди, поэтому, при считывании нового слова, длина текущей
+        зоны документа увеличивается на 1. Подучается, что DocumentLengthTable хранятся количество обработанных
+        слов документа с идентификатором docid в зоне документа zone
+        :param docid: int
+        :param zone: str
+        """
         self.table[docid][zone] += 1
 
-    def get_length(self, docid, zone):
-        if docid in self.table and zone in self.table[docid]:
+    def get_length(self, docid, zone=None):
+        """
+        Возращяет длину зоны документа, есле она указана. Иначе, длину всего документа.
+        Длиной документа считается сумма длин всех его зон.
+        :return: float
+        """
+        if zone:
             return self.table[docid][zone]
         else:
-            return 0
+            return sum([len(zone_length) for zone_length in self.table[docid].values])
 
     def count_average_length(self):
         """
-        Вычисляет среднюю длину документа в коллекции в словах
+        Вычисляет среднюю длину документа в коллекции в словах. Длиной документа считается сумма длин всех его зон.
         :return: float
         """
         summat = 0
         for docid in self.table:
-            length = 0
-            for zone in self.table[docid]:
-                length += self.table[docid][zone]
-            summat += length
+            summat += self.get_length(docid)
         return float(summat) / float(len(self.table))
 
 
@@ -444,14 +435,14 @@ def all_entries(text):
 
 def build_idx(corpus_of_readable):
     """
-    # build inverted index
+    Строит обратный индекс
     :param corpus_of_readable: list of text_analysis.Readable objects
     :return: InvertedIndex
     """
     idx = InvertedIndex()
     for docid, c in enumerate(corpus_of_readable):
         for zone in ['body', 'title', 'h1']:
-            entries = all_entries(c.get_zone(zone))
+            entries = all_entries(c.get_zone_text(zone))
             for term in entries:
                 for e in entries[term]:
                     idx.add(term, docid, zone, e)
@@ -460,7 +451,7 @@ def build_idx(corpus_of_readable):
 
 if __name__ == '__main__':
 
-    def readables_by_queries_file(f_name):
+    def readables_by_queries(queries):
         """
         Эта функция была создана для тестирования
 
@@ -474,13 +465,15 @@ if __name__ == '__main__':
         from web_page_content import WebPageContent
 
         readable_s = []
-        for q in sps.queries_from_file(f_name, 213):
-            print(q.query)
+        for query in queries:
+            print(query)
+            q = sps.YaQuery(query, 213)
             for u in q.get_urls(top=10):
                 w = WebPageContent(u).html()
                 readable_s.append(Readable(w))
         return readable_s
 
-    indx = build_idx(readables_by_queries_file(f_name='C:\\_Work\\vostok\\2.txt'))
+    QUERIES = ['методы кластеризации']
+    indx = build_idx(readables_by_queries(QUERIES))
     for i in indx.doc_ids():
-        print(indx.total_score(i, 'купить сапоги'))
+        print(indx.total_score(i, 'Методы кластерного анализа'))
