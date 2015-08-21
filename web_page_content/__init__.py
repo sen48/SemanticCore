@@ -1,9 +1,52 @@
+"""
+Cодержит класс  WebPageContent – который соответствует веб-страницам.
+Реализованы методы класса, позволяющие
+    -	получить тиц
+    -	проверить наличие в яндекс каталоге
+    -	получить все номера телефонов, встречающиеся в тексте страницы
+    -	посчитать количество адресов, встречающиеся в тексте страницы
+    -	проверить наличие поиска по сайту
+    -	проверить является ли страница "мордой"
+    -	получить html код страницы
+    -	получить заголовок страницы
+    -	получить содержимое мета-тега "description"
+    -	получить текстовое содержимое страницы (без сквозного содержимого, содержательную часть) с html разметкой
+    -	получить текстовое содержимое без разметки
+    -	получить длину содержательного текста в символах
+    -	проверить наличие онлайн консультанта
+    -	проверить наличие видео контента
+    -	проверить наличие ссылок на файлы определенного расширения
+    -	проверить наличие условий оплаты/доставки
+    -	проверить наличие пагинатора
+    -	определить объем ассортимента
+    -	проверить наличие времени работы
+    -	проверить наличие информации о количестве результатов на странице
+    -	проверить наличие корзины
+    -	посчитать количество кнопок «купить»
+    -	посчитать количество цен
+    -	проверить наличие рекламы
+    -	проверить наличие возможности задать вопрос
+    -	проверить наличие возможности заказать обратный звонок
+    -	проверить наличие ссылки на прайс-лист
+    -	проверить наличие каталога
+    -	рассчитать степень сжимаемости текста страницы 
+а так же
+    -	вычислить показатель коммерческости/информационности, основанный на содержимом страницы
+    -	сравнить содержимое страницы с содержимым заданного списка страниц
+    -	сравнить текст страницы с текстами заданного списка страниц
+    -	сравнить заголовок страницы с заголовками заданного списка страниц
+    -	сравнить description страницы descriptionами заданного списка страниц
+
+
+"""
+
 import re
 import statistics
 import urllib
 import bs4
 import bs4.element
 import grab
+import grab.error
 import read
 import pymorphy2
 import nltk
@@ -41,7 +84,7 @@ class WebPageContent:
         """
         Возвращает тИЦ страницы. Использовать с осторожностью, могут забанить ip
         """
-    
+
         yurl = 'http://bar-navig.yandex.ru/u?ver=2&show=32&url=%s' % self.url
 
         f = urllib.urlopen(yurl)
@@ -65,7 +108,7 @@ class WebPageContent:
         st = f.read()
         m = re.search(r'<textinfo>(?P<author>[\W\w]+)</textinfo>', st)
         if m:
-            #yaca = m.group(1)
+            # yaca = m.group(1)
             return True
         return False
 
@@ -93,10 +136,10 @@ class WebPageContent:
         Проверяет наличие адреса на странице.
         Сначала ищет подходящую микроразметку. Если не нашел, ищет по регулярному выражению
         """
-        num = len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="adr"]')) + \
-              len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="address"]')) + \
-              len(self.doc.select('//*[@class="vcard"]/*[@class="adr"]')) + \
-              len(self.doc.select('//*[@itemtype="http://schema.org/Organization"]/*[@class="address"]'))
+        num = len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="adr"]')) \
+            + len(self.doc.select('//*[@itemtype="http://data-vocabulary.org/Organization"]/*[@class="address"]')) \
+            + len(self.doc.select('//*[@class="vcard"]/*[@class="adr"]')) \
+            + len(self.doc.select('//*[@itemtype="http://schema.org/Organization"]/*[@class="address"]'))
         if num > 0:
             return num
         p0 = re.compile(r'(?:^|[>,;"\s])'
@@ -149,7 +192,7 @@ class WebPageContent:
         try:
             return self.doc.select('//title')[0].text()
         except (grab.error.DataNotFound, IndexError):
-            return 'no-title'
+            return ''
 
     def description(self):
         """
@@ -157,9 +200,11 @@ class WebPageContent:
         """
         try:
             p = self.doc.select('//meta[@name="description"]').node().get('web_page_content')
+            if not p:
+                return ''
             return p
-        except grab.error.DataNotFound:
-            return 'no-description'
+        except (grab.error.DataNotFound, IndexError):
+            return ''
 
     def readable(self):
         """
@@ -169,17 +214,13 @@ class WebPageContent:
 
     def text(self):
         """
-        Возвращяет текстовое содержимое страницы (без сквозного содержимого, содержательнуб часть) без html
+        Возвращяет текстовое содержимое страницы (без сквозного содержимого, содержательну часть) без html
         """
         html_doc = read.Document(self.html()).summary()
         soup = bs4.BeautifulSoup(html_doc)
         text = soup.get_text()
-        text = text.replace('#', '').replace('↵', '').replace('↑', '').replace('°', '').replace('©', '').replace('«',
-                                                                                                                 ''). \
-            replace('»', '').replace('$', '').replace('*', '').replace(u"\.", "").replace(u"\,", "").replace(u"^", ""). \
-            replace(u"|", "").replace(u"—", "").replace(u',', '').replace(u'•', '').replace(u'﴾', '').replace(u'﴿', '')
-        p = re.compile(r'[\n\r][\n\r \t\a]+')
-        text = p.sub('\n', text)
+        text = re.sub(r'[^\w\s]+|[•]+', r' ', text).strip()
+        text = re.sub(r'[\n\r][\n\r \t\a]+', r'\n', text)
         return text
 
     def text_len(self):
@@ -560,6 +601,7 @@ class WebPageContent:
         """
         texts = [page.description() for page in pages]
         text = _text_to_list(self.description())
+
         res = list()
         for word in _common_words(texts):
             if word not in text:

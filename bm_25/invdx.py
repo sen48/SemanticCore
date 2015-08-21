@@ -35,10 +35,17 @@ def _clear_term(term):
 
 def _get_pars_from_tokens(tokens):
     """
-    По списку слов возвращает список терминов, удаляя стоп-слова и знаки препинания
+    По списку слов возвращает список объектов pymorphy2.analyzer.Parse, которые содержат в себе нормальную форму
+    слова, а так же информацию о том в какой форме слово представлено в списке tokens. Стоп-слова и знаки препинания
+    в результат не добвляются.
 
-    :param tokens: list of str
-    :return : list of pymorphy2.analyzer.Parse
+    Parameters
+    ----------
+    tokens: list of str,
+        список слов
+    Returns
+    -------
+    pars: list of pymorphy2.analyzer.Parse
     """
     pre_pars = [morph.parse(_clear_term(tok))[0] for tok in tokens]
     pars = []
@@ -90,7 +97,17 @@ class PostingList:
         """
         Возвращает число вхождений термина, для которого создан постинглист в соответствующую зону документа с id
         равным doc_id
-        """
+        Parameters
+        ----------
+        doc_id: int,
+           id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+        Returns
+        -------
+        tf: int
+            число вхождений термина
+    """
         return len(self.posting_list[doc_id][zone])
 
     def entries(self, doc_id, zone):
@@ -132,9 +149,15 @@ class InvertedIndex:
     def get_document_frequency(self, word, docid):
         """
         количество вхождений слова в документ
-        :param word: str
-        :param docid: int
-        :return: int
+        
+        Parameters
+        ----------
+        word: str
+        docid: int, id документа
+
+        Returns
+        -------
+        int, document_frequency
         """
 
         # morph = pymorphy2.MorphAnalyzer()
@@ -155,9 +178,15 @@ class InvertedIndex:
         Считает значение показателя релевантности документа запросу по формулам из статьи
         «Алгоритм текстового ранжирования Яндекса» с РОМИП-2006
         http://download.yandex.ru/company/03_yandex.pdf
-        :param doc_id: int
-        :param query: str
-        :return: float
+        
+        Parameters
+        ----------
+        docid: int, id документа
+        query: str
+
+        Returns
+        -------
+        float
         """
 
         res = 0
@@ -173,10 +202,16 @@ class InvertedIndex:
     def score(self, doc_id, zone, query):
         """
         Считает значение показателя релевантности заданной зоны документа.
-        :param doc_id: int
-        :param zone: str
-        :param query:str
-        :return: float
+        
+        Parameters
+        ----------
+        docid: int, id документа
+        zone: str, зона документа, принимает одно из значений 'body', 'title', 'h1'
+        query:str
+
+        Returns
+        -------
+        float
         """
         k0 = 0.3
         k1 = 0.1
@@ -199,10 +234,18 @@ class InvertedIndex:
     def w_all_words(self, doc_id, zone, pars):
         """
         W_allwords — вклад вхождения всех терминов (форма слова не важна) из запроса;
-        :param doc_id: int
-        :param zone: str
-        :param pars: list of pymorphy2.analyzer.Parse
-        :return: float
+        
+        Parameters
+        ----------
+        docid: int,
+            id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+        pars: list of pymorphy2.analyzer.Parse
+
+        Returns
+        -------
+        float
         """
         n_miss = 0
         idfs = 0
@@ -222,10 +265,18 @@ class InvertedIndex:
         Wphrase — вклад вхождения всего запроса (фразы), учитываются формы слов
         TF — число вхождений запроса целиком.
         Считаем сколько раз встречается в тексте самое редкое для данного текста слово запроса.
-        :param doc_id: int
-        :param zone: str
-        :param pars: list of pymorphy2.analyzer.Parse
-        :return: float
+        
+        Parameters
+        ----------
+        docid: int,
+            id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+        pars: list of pymorphy2.analyzer.Parse
+
+        Returns
+        -------
+        :float
         """
         tf = self.doc_length(doc_id, zone)
         for par in pars:
@@ -242,10 +293,18 @@ class InvertedIndex:
         """
         W_halfphrase — вклад вхождения части запроса, учитываются формы слов
         TF — число вхождений большей половины слов запроса.
-        :param doc_id: int
-        :param zone: str
-        :param pars: list of pymorphy2.analyzer.Parse
-        :return: float
+        
+        Parameters
+        ----------
+        docid: int,
+            id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+        pars: list of pymorphy2.analyzer.Parse
+
+        Returns
+        -------
+        :float
         """
         tfs = collections.defaultdict(lambda: 0)
         for par in pars:
@@ -264,10 +323,18 @@ class InvertedIndex:
     def w_single(self, doc_id, zone, terms):
         """
         W_single — вклад отдельных слов из запроса;
-        :param doc_id: int
-        :param zone: str
-        :param terms: list of pymorphy2.analyzer.Parse
-        :return: float
+        
+        Parameters
+        ----------
+        docid: int,
+            id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+        pars: list of pymorphy2.analyzer.Parse
+
+        Returns
+        -------
+        :float
         """
         terms = [t.normal_form for t in terms]
         res = 0
@@ -288,11 +355,17 @@ class InvertedIndex:
 
     def w_pair(self, doc_id, zone, pars):
         """
-        W_pair — вклад пар слов;
-        :param doc_id: int
-        :param zone: str
-        :param pars: list of pymorphy2.analyzer.Parse
-        :return: float
+        Parameters
+        ----------
+        docid: int,
+            id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+        pars: list of pymorphy2.analyzer.Parse
+
+        Returns
+        -------
+        :float
         """
         terms = [t.normal_form for t in pars]
         if len(terms) < 2:
@@ -338,6 +411,18 @@ def pair_tf(positions0, positions1):
     подряд (+1),
     через слово (+0.5) или
     в обратном порядке (+0.5).
+
+    Parameters
+    ----------
+    positions0: list of int,
+        список позиций вхождений первого слова
+    positions1: list of int,
+        список позиций вхождений второго слова
+
+    Returns
+    -------
+    :float
+        количество вхождений пары слов, с учетом весов
     """
     tf = 0
     for p1 in positions0:
@@ -354,6 +439,18 @@ def pair_spec_tf(positions0, positions2):
     """
     Количество вхождений пары слов специальный случай, когда слова, идущие в запросе через одно,
     в тексте встречаются подряд (+0.1).
+
+    Parameters
+    ----------
+    positions0: list of int,
+        список позиций вхождений первого слова
+    positions1: list of int,
+        список позиций вхождений второго слова
+
+    Returns
+    -------
+    :float
+         количество вхождений пары слов, специальный случай
     """
     tf = 0
     for p1 in positions0:
@@ -375,7 +472,10 @@ class DocumentLengthTable:
     def doc_ids(self):
         """
         Возвращяет idшники документов, длины которых содержатся в таблице
-        :return: a set-like object
+
+        Returns
+        -------
+        a set-like object:
         """
         return self.table.keys()
 
@@ -384,8 +484,11 @@ class DocumentLengthTable:
         Слова их документа в индекс добавляются по очереди, поэтому, при считывании нового слова, длина текущей
         зоны документа увеличивается на 1. Подучается, что DocumentLengthTable хранятся количество обработанных
         слов документа с идентификатором docid в зоне документа zone
-        :param docid: int
-        :param zone: str
+        
+        Parameters
+        ----------
+            docid: int, id документа
+            zone: str, зона документа, принимает одно из значений 'body', 'title', 'h1'
         """
         self.table[docid][zone] += 1
 
@@ -393,7 +496,17 @@ class DocumentLengthTable:
         """
         Возращяет длину зоны документа, есле она указана. Иначе, длину всего документа.
         Длиной документа считается сумма длин всех его зон.
-        :return: float
+
+        Parameters
+        ----------
+        docid: int,
+            id документа
+        zone: str,
+            зона документа, принимает одно из значений 'body', 'title', 'h1'
+
+        Returns
+        -------
+        :float, длина документа
         """
         if zone:
             return self.table[docid][zone]
@@ -403,7 +516,11 @@ class DocumentLengthTable:
     def count_average_length(self):
         """
         Вычисляет среднюю длину документа в коллекции в словах. Длиной документа считается сумма длин всех его зон.
-        :return: float
+
+        Returns
+        -------
+        :float,
+            средняя длина документа в коллекции
         """
         summat = 0
         for docid in self.table:
@@ -415,8 +532,15 @@ def all_entries(text):
     """
     Возвращяет словарь вида {термин: список вхождений (Entry)
     данного термина в соответствующий текст} для всех слов, встречающихся в тексте, кроме стоп-слов
-    :param text: str
-    :return:
+    
+    Parameters
+    ----------
+    text: str
+
+    Returns
+    -------
+    entries: dict(),
+        словарь вида {термин(str): list of Entry objects}
     """
     entries = dict()
     # morph = pymorphy2.MorphAnalyzer()
@@ -436,8 +560,15 @@ def all_entries(text):
 def build_idx(corpus_of_readable):
     """
     Строит обратный индекс
-    :param corpus_of_readable: list of text_analysis.Readable objects
-    :return: InvertedIndex
+    
+    Parameters
+    ----------
+    corpus_of_readable:
+        list of text_analysis.Readable objects, коллекция текстов
+    Returns
+    -------
+    idx: InvertedIndex,
+        обратный индекс коллекции текстов corpus_of_readable
     """
     idx = InvertedIndex()
     for docid, c in enumerate(corpus_of_readable):
@@ -457,21 +588,27 @@ if __name__ == '__main__':
 
         Возвращяет список объектов типа text_analysis.Readable. соответствующих всем элементам ТОП10 поисковой выдачи
         по всем запросам из файла f_name
-        :param f_name:
-        :return:
+        
+        Parameters
+        ----------
+        f_name: str,
+            имя файла со списком запросов.
+        Returns
+        -------
+        readables: list of text_analysis.Readable,
+            тексты всех документов ТОП10 поисковой выдачи  по каждому из запросов из файла f_name
         """
         from text_analysis import Readable
         import search_engine_tk.ya_query as sps
         from web_page_content import WebPageContent
 
-        readable_s = []
+        readables = []
         for query in queries:
-            print(query)
             q = sps.YaQuery(query, 213)
             for u in q.get_urls(top=10):
                 w = WebPageContent(u).html()
-                readable_s.append(Readable(w))
-        return readable_s
+                readables.append(Readable(w))
+        return readables
 
     QUERIES = ['методы кластеризации']
     indx = build_idx(readables_by_queries(QUERIES))

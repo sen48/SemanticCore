@@ -11,12 +11,19 @@ def split_duration(current_conversion_rate, delta, number_of_variations, visitor
     """
     Функция расчитывает минимальное количество дней, необходимое для получения достоверных результатов при
     сплит тестировании. Уровень значимости 0.05, статистическая мощность 0.8
+        
+    Parameters
+    ----------
+        current_conversion_rate: numeric, Показатель конверсии на данный момент в долях.
+        delta:numeric, минимальное изменение, которое хотим отследит. В долях от текущего показателя конверсий
+        number_of_variations: int, Число различных вариаций
+        visitors_per_day: numeric, Посетителей в день
+        visitors_in_experiment_rate: numeric, Доля посетителей, участвующих в эксперименте
 
-    :param current_conversion_rate: Показатель конверсии на данный момент в долях.
-    :param delta: минимальное изменение, которое хотим отследит. В долях от текущего показателя конверсий
-    :param number_of_variations: Число различных вариаций
-    :param visitors_per_day: Посетителей в день
-    :param visitors_in_experiment_rate: Доля посетителей, участвующих в эксперименте
+    Returns
+    -------
+        result: int, количество дней, необходимое для получения достоверных результатов при
+                сплит тестировании
     """
 
     p = current_conversion_rate
@@ -33,5 +40,5 @@ def split_duration(current_conversion_rate, delta, number_of_variations, visitor
     return result
 
 import pydoc
-import bm_25.invdx
-pydoc.doc(bm_25.invdx)
+import core_clusterizetion.algomerative
+pydoc.doc(core_clusterizetion.algomerative)

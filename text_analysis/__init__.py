@@ -1,3 +1,11 @@
+"""
+Предназначен для анализа текстов web-страниц.
+Реализованна возможность выделять
+  - наиболее популярные слова коллекции,
+  - наиболее частотные словосочетания
+  - наиболее характерных слова
+"""
+
 import pickle
 import re
 import collections
@@ -26,7 +34,10 @@ class Readable(read.Document):
     def text(self):
         """
         Извлекает основной текст
-        :return: str
+
+        Returns
+        -------
+        : str
         """
         soup = bs4.BeautifulSoup(self.summary())
         text = soup.get_text()
@@ -45,7 +56,9 @@ class Readable(read.Document):
 
     def h1(self):
         """
-        :return: str, concatenation of h1 texts
+        Returns
+        -------
+        : str, concatenation of h1 texts
         """
         return ' '.join(self._get_tag('h1'))
 
@@ -54,8 +67,14 @@ class Readable(read.Document):
 
     def get_zone_text(self, zone):
         """
-        :param zone: str
-        :return: str
+        Parameters
+        ----------
+        zone: str,
+            зона документа, напимер: 'body', 'title', 'h1'
+
+        Returns
+        -------
+        : str
         """
         if zone == 'body':
             return self.text()
@@ -79,9 +98,10 @@ def load_ruscorpra_probabilities():
     которые находятся в файле 1grams.txt
     Чтобы каждый раз не разбирать, маринуется в CF.pickled
 
-    Кажется, что это то же, что и _read_idfs(file) из bm_25.invdx
 
-    :return: nltk.ELEProbDist
+    Returns
+    -------
+    : nltk.ELEProbDist
     """
     try:
         with open('C:\\_Work\\SemanticCore\\text_analysis\\CF.pickled', mode='rb') as pickled:
@@ -104,44 +124,66 @@ def load_ruscorpra_probabilities():
             print(ex)
     return nltk.ELEProbDist(nltk.FreqDist(cf))
 
-CF = load_ruscorpra_probabilities()
-
 
 def weird(freq_dist, num=50):
     """
     Возвращяет список, состоящий из num наиболее характерных терминов коллекции. Термин считается характерным,
     если в коллекции он встречается часто, а в русском языке - нет. Степень характерности (weirdness) вычисляется как
     отношение частоты в коллекции к частоте в русском языке.
-    :param freq_dist: nltk.FreqDist - частоты слов в коллекции
-    :param num: int, число результатов
-    :return: list of str
+    Parameters
+    ----------
+    freq_dist: nltk.FreqDist - частоты слов в коллекции
+    num: int, число результатов
+    Returns
+    -------
+    : list of str
     """
     weirdness = {}
     for w in freq_dist.keys():
         if w == '':
             continue
-        lang_freq = CF.prob(w)
+        lang_prob_dist = load_ruscorpra_probabilities()
+        lang_freq = lang_prob_dist.prob(w)
         weirdness[w] = freq_dist.get(w) / lang_freq
     return sorted(weirdness.keys(), key=lambda k: weirdness[k], reverse=True)[:num]
 
 
-def collocations(sents):
+def collocations(sents, num=30, window_size=2):
     """
     Ищет колокации в тексте
-    :param sents: список строк
-    :return:
+    Parameters
+    ----------
+    sents: list of str,
+        набор текстов (коллекция)
+    num: int,
+        сколько нужно найти
+    window_size:
+       int, длина коллокации
+    Returns
+    -------
+    : list of str
     """
-    text = nltk.text.Text([token for sentence in sents for token in nltk.word_tokenize(sentence) if token not in punctuation])
-    return text.find_collocations(num=30)
+    text = nltk.text.Text([token for sentence in sents for token in nltk.word_tokenize(sentence)
+                           if token not in punctuation])
+
+    return text.find_collocations(num, window_size)
 
 
 def words_freq(sents, normalize):
     """
     Считает частоты слов
-    :param sents: список строк
-    :param normalize: если ИСТИНА, то слова приводятся к нормальной форме
-    :return: два nltk.FreqDist. В первом общее число вхождений слов во все строки. Во втором количество документов,
-    в которые вошло слво
+    Parameters
+    ----------
+    sents:  list of str,
+        набор текстов (коллекция)
+    normalize: bool,
+        если ИСТИНА, то слова приводятся к нормальной форме
+    Returns
+    -------
+    : nltk.FreqDist
+        общее число вхождений слов во все строки.
+    : nltk.FreqDist
+        количество документов, в которые вошло слво
     """
     morph = pymorphy2.MorphAnalyzer()
     words = []
@@ -165,45 +207,3 @@ def words_freq(sents, normalize):
     text2 = Counter(docdist)
 
     return nltk.FreqDist(text1), nltk.FreqDist(text2)
-
-
-if __name__ == '__main__':
-    pass
-
-    """corpus_root = 'C:\\_Work\\lightstar\\corp'
-    # make_plain_text_files('c:/_Work/lightstar/to_markers_ws.txt',corpus_root)
-
-    corp = PlaintextCorpusReader(corpus_root, fileids='.+[.]txt')
-    print('PlaintextCorpusRead')
-    text1 = nltk.text.Text([tok for s in corp.sents() for tok in s if tok not in punctuation])
-    print('Text')
-    print(text1.collocations())
-    print(text1.similar("люстра"))
-    print(text1.similar("торшер"))
-    print(text1.similar("светильник"))
-    print(text1.similar("потолочный"))
-    print(text1.common_contexts(["люстра", "торшер"]))
-
-    morph = pymorphy2.MorphAnalyzer()
-
-    print('Text_term')
-    del text1
-    wl = []
-    for s in corp.sents():
-        for tok in s:
-            if tok not in punctuation:
-                tm = morph.parse(tok)[0].normal_form
-                if tm not in stop_words:
-                    wl.append(tm)
-    text1 = nltk.text.Text(wl)
-    print(text1.collocations())
-    print(text1.similar("люстра"))
-    print(text1.similar("торшер"))
-    print(text1.similar("светильник"))
-    print(text1.similar("потолочный"))
-    print(text1.common_contexts(["люстра", "торшер"]))
-
-    fdist1 = nltk.FreqDist(text1)
-    fdist1.plot(500, cumulative=False)
-    # print(nltk.pos_tag(text1))"""
-

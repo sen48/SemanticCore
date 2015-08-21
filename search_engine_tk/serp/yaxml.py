@@ -12,10 +12,17 @@ def get_serp(query, region, num_res=100):
     """
     Возвращает список объектов SearchResultItem соответствующий первым num_res результатам выдачи Яндекса
     по запросу query в регионе region
-    :param query: str
-    :param region: int
-    :param num_res: int
-    :return: list of pyyaxml.search.SearchResultItem
+    Parameters
+    ----------
+    query: str,
+        поисковый запрос запрос
+    region: int,
+        номер региона по нумерации яндекса
+    num_res: int,
+        глубина ТОПа
+    Returns
+    -------
+    : list of pyyaxml.search.SearchResultItem
     """
     return _site_list(query, region, num_res)
 
@@ -32,10 +39,17 @@ def _site_list(query, region, num_res, page=0):
 def corresponding_page(query, region, site):
     """
     Возвращает SearchResultItem соответствующий странице сайта site наиболее релевантной запросу query в регионе region
-    :param query: str
-    :param region: int
-    :param site: str
-    :return: pyyaxml.search.SearchResultItem
+    Parameters
+    ----------
+    site: str,
+        адрес сайта без http:// и www
+    query: str,
+        поисковый запрос запрос
+    region: int,
+        номер региона по нумерации яндекса
+    Returns
+    -------
+    : pyyaxml.search.SearchResultItem
     """
     y = YaSearch(API_USER, API_KEY)
     results = y.search(query, site=site, page=0, region=region)

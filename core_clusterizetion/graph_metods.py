@@ -29,6 +29,13 @@ _get = lambda dist, i, j: dist[i][j] if dist.ndim == 2 else squareform(dist)[i][
 min_except_zero = lambda lst: functools.reduce(lambda res, x: res if x == 0 else min(res, x), lst, lst[0])
 
 
+class Edge:
+    def __init__(self, u, v, weight):
+        self.u = u
+        self.v = v
+        self.weight = weight
+
+
 def shotest_open_path(dist, level=0.9):
     """
         Алгоритм кратчайшего незамкнутого пути строит граф из ℓ−1 рёбер так, чтобы
@@ -41,21 +48,21 @@ def shotest_open_path(dist, level=0.9):
         3: найти изолированную точку, ближайшую к некоторой неизолированной;
         4: соединить эти две точки ребром;
         5: удалить рёбра, которые длинее level;
-    :param dist:
-    :param level:
-    :return:
+    Parameters
+    ----------
+    dist: ndarray,
+        матрица растояний
+    level: numeric,
+    Returns
+    -------
+    clusters: list of lists of int
+        список кластеров, здесь под кластером подразумевается список номеров объектов, которые лежат в кластеры.
     """
     dist = _square_dist(dist)
-    N, M = dist.shape
-    class Edge:
-        def __init__(self, i, j, weight):
-            self.u = i
-            self.v = j
-            self.weight = weight
-
-    edges = [Edge(i, j, dist[i][j]) for i in range(N) for j in range(i+1, M) if dist[i][j] <= level]
+    n, m = dist.shape
+    edges = [Edge(i, j, dist[i][j]) for i in range(n) for j in range(i+1, m) if dist[i][j] <= level]
     edges = sorted(edges, key=lambda e: e.weight)
-    isolated = [i for i in range(N)]
+    isolated = [i for i in range(n)]
     e = edges[0]
     isolated.remove(e.v)
     isolated.remove(e.u)
@@ -79,7 +86,7 @@ def shotest_open_path(dist, level=0.9):
                 if edges[i].u in isolated and edges[i].v in isolated:
                     isolated.remove(edges[i].u)
                     isolated.remove(edges[i].v)
-                    clusters.append([edges[i].u,edges[i].v])
+                    clusters.append([edges[i].u, edges[i].v])
                     edges.remove(edges[i])
                     break
             else:

@@ -7,6 +7,22 @@ from pyyaxml.search import SearchResultItem
 
 
 def get_serp(query, region=213, num_res=10):
+    """
+
+    Parameters
+    ----------
+    query: str,
+        поисковый запрос запрос
+    region: int,
+        номер региона по нумерации яндекса
+    num_res: int,
+        глубина ТОПа
+     Returns
+    -------
+    : list of pyyaxml.search.SearchResultItem
+        список, упорядоченный по позиции в выдаче список объектов типа SerpItem длиной top,
+        соответствующий ТОП{top} поисковой выдачи
+    """
     params = {'request': query,
               'user': 'timonof@gmail.com',
               'password': 'En90fB',
@@ -36,8 +52,14 @@ def get_serp(query, region=213, num_res=10):
 def megaindex_wordstat3(queries):
     """
     Возвращяет значения wordstat по точному соответствию
-    :param queries:
-    :return:
+    Parameters
+    ----------
+    query: str,
+        поисковый запрос запрос
+
+    Returns
+    -------
+    : list of int
     """
 
     res = []
@@ -55,7 +77,9 @@ def megaindex_wordstat3(queries):
             continue
         jsonText = g.doc.unicode_body()
         data = json.loads(jsonText)
-        res.append(data['data'])
+        try:
+            res.append(int(data['data']))
+        except:
+            res.append(0)
+
     return res
-
-
