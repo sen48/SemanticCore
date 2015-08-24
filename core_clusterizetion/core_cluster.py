@@ -96,7 +96,7 @@ def cluster_dist(first_cluster, second_cluster, dist):
     return min(dist[c1][c2] for c1 in first_cluster for c2 in second_cluster)
 
 
-class ClusterException(Exception):
+class _ClusterException(Exception):
     pass
 
 
@@ -115,7 +115,7 @@ def F0(f_cluster, dist):
     """
     N = dist.shape[0]
     if N != len(f_cluster):
-        raise ClusterException('len(fcluster) != dist.shape[0]')
+        raise _ClusterException('len(fcluster) != dist.shape[0]')
     devisor = sum(dist[i][j] for i in range(N) for j in range(i, N))
     dividend = sum(dist[i][j] for i in range(N) for j in range(i, N) if f_cluster[i] == f_cluster[j])
     return dividend / devisor
@@ -136,7 +136,7 @@ def F1(f_cluster, dist):
     """
     N = dist.shape[0]
     if N != len(f_cluster):
-        raise ClusterException('len(fcluster) != dist.shape[0]')
+        raise _ClusterException('len(fcluster) != dist.shape[0]')
     devisor = sum(dist[i][j] for i in range(N) for j in range(i, N))
     dividend = sum(dist[i][j] for i in range(N) for j in range(i, N) if f_cluster[i] != f_cluster[j])
     return dividend / devisor

@@ -8,11 +8,12 @@ fcluster формирует по ней кластеры
 """
 
 import scipy.cluster.hierarchy as sch
-import core_clusterizetion.core_cluster as core_cluster
 from scipy.spatial.distance import pdist
 
+import core_clusterizetion.core_cluster as core_cluster
 
-class AlgomerativeClusterizationException(Exception):
+
+class _AlgomerativeClusterizationException(Exception):
     pass
 
 
@@ -94,8 +95,8 @@ def queries_linkage(ya_queries, num_res, method, metrics):
 
     if method in ('ward', 'centroid', 'median'):
         if metrics != 'euclidian':
-            raise AlgomerativeClusterizationException('Метод {} можно использовать '
-                                                      'только с евклидовым расстоянием'.format(method))
+            raise _AlgomerativeClusterizationException('Метод {} можно использовать '
+                                                       'только с евклидовым расстоянием'.format(method))
     vectors = core_cluster.get_queries_vectors(ya_queries, num_res, method in ('ward', 'centroid', 'median'))
     return _get_linkage(vectors, method, metrics)
 

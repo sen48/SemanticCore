@@ -2,14 +2,33 @@
 Различные расстояния между равными по длине списками
 """
 
-class RatingDistException(Exception):
+class _RatingDistException(Exception):
     pass
 
 
 def rating_dist(r1, r2, method='CTR'):
+    """
+    Расстояние между двумя рейтингами. Для нас, это расстояние между выдачами.
+    http://habrahabr.ru/post/239797/
+
+    Parameters
+    ----------
+    r1: list of urls (str ot int),
+        первая выдача, может быть представлена ввиде списка урлов или idшников урлов
+    r2: list of urls (str ot int)
+        вторая выдача,
+    method: str,
+        может быть 'CTR' или 'classic',
+        'classic' - это формула (5) из http://habrahabr.ru/post/239797/
+        'CTR' - формула (10)
+
+    Returns
+    -------
+    float: расстояние
+    """
     n = len(r1)
     if n != len(r2):
-        raise RatingDistException('Ratings has different lengths (Lists of different lengths) {} {}'.format(n, len(r2)))
+        raise _RatingDistException('Ratings has different lengths (Lists of different lengths) {} {}'.format(n, len(r2)))
     if method == 'CTR':
         var = lambda u, v: abs(1.0 / n1 - 1.0 / n2)
         dev = 2 * (sum([1 / i for i in range(1, n + 1)]) - n / (n + 1))
@@ -17,7 +36,7 @@ def rating_dist(r1, r2, method='CTR'):
         var = lambda u, v: abs(n1 - n2)
         dev = (n + 1) * n
     else:
-        raise RatingDistException('Unknown method: {}'.format(method))
+        raise _RatingDistException('Unknown method: {}'.format(method))
 
     unique_urls = set(r1).union(set(r2))
     summ = 0
@@ -32,4 +51,19 @@ def rating_dist(r1, r2, method='CTR'):
     return summ / dev
 
 
-number_of_common_items = lambda u, v: sum([int(i in v) for i in u])
+def number_of_common_items(r1, r2):
+    """
+    Мера схожести двух поисковых выдач. Равна количеству урлов, присутствующих в обеих выдачах.
+
+    Parameters
+    ----------
+    r1: list of urls (str ot int),
+        первая выдача, может быть представлена ввиде списка урлов или idшников урлов,
+    r2: list of urls (str ot int)
+        вторая выдача,
+
+    Returns
+    -------
+    float: мера схожести
+    """
+    return sum([int(i in r1) for i in r2])

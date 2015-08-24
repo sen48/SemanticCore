@@ -6,7 +6,9 @@ from search_engine_tk.serp_metrics import rating_dist
 
 
 class YaQuery:
-
+    """
+    Соответствует запросу в Яндексе. Однозначно определяется строкой поискового запроса и регионом поиска.
+    """
     def __init__(self, query, region):
         """
         Parameters
@@ -180,9 +182,14 @@ class YaQuery:
 def queries_from_file(file, region):
     """
     Возвращает список объектов YaQuery, соответствующих запросам из файла
-    :param file:
-    :param region: int, регион поиска
-    :return:
+    Parameters
+    ----------
+    file: str,
+    region: int, регион поиска
+
+    Returns
+    -------
+    :list of YaQuery
     """
     try:
         queries = []

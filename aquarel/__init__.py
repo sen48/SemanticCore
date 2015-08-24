@@ -21,9 +21,15 @@ def colorize_text(fdist, text):
     Зеленый – соответствует, красный – нет.
     Если навести мышку на слово, во всплывающей подсказке будут показаны часть речи и
     численное значение «релевантности».
-    :param fdist: nltk.FreqDist - частоты слов
-    :param text: srt, текст для раскраски
-    :return: str,  текст с html разметкой
+
+    Parameters
+    ----------
+    fdist: nltk.FreqDist - частоты слов
+    text: srt, текст для раскраски
+
+    Returns
+    -------
+    str,  текст с html разметкой
     """
 
     morph = pymorphy2.MorphAnalyzer()
@@ -33,10 +39,10 @@ def colorize_text(fdist, text):
     for word in text.split(' '):
         if '-' in word:
             for w in word.split('-')[:-1]:
-                res.append(SpecialWord(w, morph, fdist, '-'))
-            res.append(SpecialWord(word.split('-')[-1], morph, fdist))
+                res.append(_SpecialWord(w, morph, fdist, '-'))
+            res.append(_SpecialWord(word.split('-')[-1], morph, fdist))
         else:
-            res.append(SpecialWord(word, morph, fdist))
+            res.append(_SpecialWord(word, morph, fdist))
     return make_html(res)
 
 
@@ -44,8 +50,14 @@ def is_black(par):
     """
     Если рассматриваемое слово не нужно раскрашивать, то есть оно является служебной частью речи
     или стоп-словом, возвтащает TRUE. Иначе  FALSE
-    :param par: pymorphy2.analyzer.Parse
-    :return: bool
+
+    Parameters
+    ----------
+    par: pymorphy2.analyzer.Parse
+
+    Returns
+    -------
+    bool
     """
     return not par.tag.is_productive() or par.normal_form in text_analysis.stop_words or par.tag.POS != 'ADVB'
 
@@ -55,11 +67,17 @@ def form_color_title(par, fdist):
     Формирует:
         1)color - строку, означающую цвет, в который нужно раскрасить слово
         2)title - строку, которая содержит частоту, нормальную форму и части речи.
-    :param par:  pymorphy2.analyzer.Parse
-    :param fdist: nltk.FreqDist - частоты слов
-    :return: color: str, строка начинающаяся с # а дальше 16-тиричный код цвета
-             title: str, строка состоящая из частоты слова(опционально, если слово раскрашивается в оттенок зеленого),
-                    нормальной формы и части речи
+
+    Parameters
+    ----------
+    par:  pymorphy2.analyzer.Parse
+    fdist: nltk.FreqDist - частоты слов
+
+    Returns
+    -------
+    color: str, строка начинающаяся с # а дальше 16-тиричный код цвета
+    title: str, строка состоящая из частоты слова(опционально, если слово раскрашивается в оттенок зеленого),
+            нормальной формы и части речи
     """
     max_freq = fdist.most_common(1)[0][1]
     tok = par.normal_form
@@ -82,8 +100,14 @@ def form_color_title(par, fdist):
 def make_html(special_words):
     """
     Формирует текст с html разметкой из списка special_words
-    :param special_words: list of SpecialWord
-    :return: str
+
+    Parameters
+    ----------
+    special_words: list of SpecialWord
+
+    Returns
+    -------
+    : str
     """
     html = ''
     for sw in special_words:
@@ -91,7 +115,7 @@ def make_html(special_words):
     return html
 
 
-class SpecialWord:
+class _SpecialWord:
     """
     Служебный класс для расскрашевания слов
 
@@ -103,10 +127,12 @@ class SpecialWord:
 
     def __init__(self, word, morph, fdist, sep=' '):
         """
-        :param word: str, само слово
-        :param morph: pymorphy2.MorphAnalyzer
-        :param fdist: nltk.FreqDist - частоты слов коллекции
-        :param sep: str, символ, который нежно поставить после слова
+        Parameters
+        ----------
+        word: str, само слово
+        morph: pymorphy2.MorphAnalyzer
+        fdist: nltk.FreqDist - частоты слов коллекции
+        sep: str, символ, который нежно поставить после слова
         """
         par = _get_par(word, morph)
         color, title = form_color_title(par, fdist)
@@ -121,9 +147,15 @@ if __name__ == "__main__":
     def get_texts(query, region):
         """
         Извлекает тексты ТОП10 по заданному запросу
-        :param query: запрос
-        :param region: регион
-        :return: список текстов.
+
+        Parameters
+        ----------
+        query: str, запрос
+        region: int, регион
+
+        Returns
+        -------
+        :list of str  список текстов.
         """
         import search_engine_tk.serp as wrs
         from web_page_content import WebPageContent
@@ -142,13 +174,18 @@ if __name__ == "__main__":
         """
         Возвращяет раскришенный текст, популярные слова, популярные словосочетания,
 
-        :param queries: lift of str, Список запросов
-        :param analyzed_text: str, Текст, который нужно раскрасить
-        :param region: int, регион запроса
-        :return: color_text - str, текст с html разметкой,
-                 most_comm - lift of str, список наиболее популярных терминов,
-                 coll - lift of str, список наиболее попуолярных словосочетаний
-                 weird - lift of str, список наиболее характерных терминов
+        Parameters
+        ----------
+        queries: lift of str, Список запросов
+        analyzed_text: str, Текст, который нужно раскрасить
+        region: int, регион запроса
+
+        Returns
+        -------
+        color_text: str, текст с html разметкой,
+        most_comm: lift of str, список наиболее популярных терминов,
+        coll: lift of str, список наиболее попуолярных словосочетаний
+        weird: lift of str, список наиболее характерных терминов
         """
 
         collection = []

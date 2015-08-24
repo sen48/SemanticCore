@@ -39,6 +39,29 @@ def split_duration(current_conversion_rate, delta, number_of_variations, visitor
         print(str(result) + " day")
     return result
 
-import pydoc
-import core_clusterizetion.algomerative
-pydoc.doc(core_clusterizetion.algomerative)
+if __name__ == '__main':
+    import pydoc
+    import aquarel
+    import bm_25.invdx
+    import bm_25.rank
+    import core_clusterizetion.algomerative
+    import core_clusterizetion.core_cluster
+    import core_clusterizetion.forel_ShOP
+    import core_clusterizetion.forel
+    import core_clusterizetion.graph_metods
+    import search_engine_tk.serp.megaindex
+    import search_engine_tk.serp.yaxml
+    import search_engine_tk.serp_item
+    import search_engine_tk.serp_metrics
+    import search_engine_tk.ya_query
+    import text_analysis
+    import web_page_content
+
+    moduls = [aquarel, bm_25.invdx, bm_25.rank,
+              core_clusterizetion.algomerative, core_clusterizetion.core_cluster, core_clusterizetion.forel_ShOP,
+              core_clusterizetion.forel, core_clusterizetion.graph_metods,
+              search_engine_tk.serp.megaindex, search_engine_tk.serp.yaxml, search_engine_tk.serp_item,
+              search_engine_tk.serp_metrics, search_engine_tk.ya_query,
+              text_analysis, web_page_content]
+    for modul in moduls:
+        pydoc.writedoc(modul)

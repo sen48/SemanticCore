@@ -190,7 +190,6 @@ class InvertedIndex:
         """
 
         res = 0
-        #sum([self.w_half_phrase(doc_id, zone, _get_par_list(query)) for zone in ['body', 'title', 'h1']])
         for zone in ['body', 'title', 'h1']:
             sc = self.score(doc_id, zone, query)
             res += self.ZONE_COEFFICIENT[zone] * sc
@@ -482,7 +481,7 @@ class DocumentLengthTable:
     def update(self, docid, zone):
         """
         Слова их документа в индекс добавляются по очереди, поэтому, при считывании нового слова, длина текущей
-        зоны документа увеличивается на 1. Подучается, что DocumentLengthTable хранятся количество обработанных
+        зоны документа увеличивается на 1. Подучается, что в DocumentLengthTable хранятся количество обработанных
         слов документа с идентификатором docid в зоне документа zone
         
         Parameters

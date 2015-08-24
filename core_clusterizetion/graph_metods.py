@@ -29,7 +29,7 @@ _get = lambda dist, i, j: dist[i][j] if dist.ndim == 2 else squareform(dist)[i][
 min_except_zero = lambda lst: functools.reduce(lambda res, x: res if x == 0 else min(res, x), lst, lst[0])
 
 
-class Edge:
+class _Edge:
     def __init__(self, u, v, weight):
         self.u = u
         self.v = v
@@ -60,7 +60,7 @@ def shotest_open_path(dist, level=0.9):
     """
     dist = _square_dist(dist)
     n, m = dist.shape
-    edges = [Edge(i, j, dist[i][j]) for i in range(n) for j in range(i+1, m) if dist[i][j] <= level]
+    edges = [_Edge(i, j, dist[i][j]) for i in range(n) for j in range(i+1, m) if dist[i][j] <= level]
     edges = sorted(edges, key=lambda e: e.weight)
     isolated = [i for i in range(n)]
     e = edges[0]
